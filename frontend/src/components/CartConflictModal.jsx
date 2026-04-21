@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, Trash2, X } from "lucide-react";
 import { resetConflict, clearCartLocal, addToCart } from "../redux/slices/cartSlice";
+import api from "../services/api";
 import toast from "react-hot-toast";
 
 const CartConflictModal = () => {
@@ -12,17 +13,22 @@ const CartConflictModal = () => {
     if (!conflict?.show) return null;
 
     const handleClearAndAdd = async () => {
-        const itemPromise = dispatch(clearCartLocal());
-        toast.promise(itemPromise, {
-            loading: "Clearing existing cart...",
-            success: "Cart cleared!",
-            error: "Failed to clear cart"
-        });
-
-        if (conflict.pendingItem) {
-            dispatch(addToCart(conflict.pendingItem));
+        try {
+            // Step 1: Clear the cart in the BACKEND (not just Redux)
+            await api.delete("/cart/clear");
+            // Step 2: Clear locally in Redux
+            dispatch(clearCartLocal());
+            toast.success("Cart cleared!");
+            // Step 3: Now add the new item from the different restaurant
+            if (conflict.pendingItem) {
+                await dispatch(addToCart(conflict.pendingItem)).unwrap();
+                toast.success("Item added to new cart!");
+            }
+        } catch (err) {
+            toast.error("Failed to switch restaurant. Please try again.");
+        } finally {
+            dispatch(resetConflict());
         }
-        dispatch(resetConflict());
     };
 
     return (

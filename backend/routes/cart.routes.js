@@ -3,7 +3,8 @@ const {
     addToCart, 
     getCart, 
     updateQuantity, 
-    removeFromCart 
+    removeFromCart,
+    clearCart
 } = require("../controllers/cart.controller");
 const { verifyJWT } = require("../middlewares/auth.middleware");
 
@@ -16,5 +17,6 @@ router.post("/add", addToCart);
 router.get("/", getCart);
 router.put("/update", updateQuantity);
 router.delete("/remove/:foodItemId", removeFromCart);
+router.delete("/clear", clearCart);
 
 module.exports = router;

@@ -35,6 +35,9 @@ const addToCart = asyncHandler(async (req, res) => {
         await cart.save();
     }
 
+    // CRITICAL FIX: Always populate before returning so frontend has price, name, image etc.
+    await cart.populate("items.foodItemId");
+
     return res.status(200).json(new ApiResponse(200, cart, "Item added to cart"));
 });
 
@@ -75,6 +78,9 @@ const updateQuantity = asyncHandler(async (req, res) => {
         return res.status(404).json(new ApiResponse(404, null, "Item not found in cart"));
     }
 
+    // CRITICAL FIX: Populate before returning
+    await cart.populate("items.foodItemId");
+
     return res.status(200).json(new ApiResponse(200, cart, "Cart updated successfully"));
 });
 
@@ -98,7 +104,19 @@ const removeFromCart = asyncHandler(async (req, res) => {
     }
 
     await cart.save();
+
+    // CRITICAL FIX: Populate before returning
+    await cart.populate("items.foodItemId");
+
     return res.status(200).json(new ApiResponse(200, cart, "Item removed from cart"));
+});
+
+// @desc    Clear entire cart (used during restaurant conflict resolution)
+// @route   DELETE /api/v1/cart/clear
+const clearCart = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    await Cart.deleteOne({ userId });
+    return res.status(200).json(new ApiResponse(200, { items: [] }, "Cart cleared successfully"));
 });
 
 module.exports = {
@@ -106,4 +124,5 @@ module.exports = {
     getCart,
     updateQuantity,
     removeFromCart,
+    clearCart,
 };

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { fetchRestaurantReviews } from "../redux/slices/reviewSlice";
 import ReviewSection from "../components/ReviewSection";
+import { getFoodItemImage } from "../utils/restaurantImages";
 
 const RestaurantDetail = () => {
     const { id } = useParams();
@@ -159,11 +160,11 @@ const RestaurantDetail = () => {
                                 </div>
                                 <div className="relative flex-shrink-0">
                                     <div className="w-40 h-40 rounded-3xl overflow-hidden shadow-lg border border-gray-50 bg-gray-50">
-                                        {item.image ? (
-                                            <img src={item.image} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-accent/20 font-black">SWIGGY</div>
-                                        )}
+                                        <img 
+                                            src={getFoodItemImage(item)} 
+                                            alt={item.name} 
+                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                                        />
                                     </div>
                                     <motion.button 
                                         whileTap={{ scale: 0.9 }}

@@ -11,6 +11,7 @@ import { Tag, Ticket } from "lucide-react";
 
 // Premium Local Assets
 import restaurantFallbackImg from "../assets/images/restaurant_fallback.png";
+import { getFoodItemImage } from "../utils/restaurantImages";
 
 const CartPage = () => {
     const dispatch = useDispatch();
@@ -66,11 +67,9 @@ const CartPage = () => {
             <div className="min-h-screen bg-white">
                 <Navbar />
                 <div className="flex flex-col items-center justify-center pt-40 px-4">
-                    <img 
-                        src="https://media-assets.swiggy.com/swiggy/image/upload/fl_lossy,f_auto,q_auto/2xempty_cart_ybi77u" 
-                        alt="Empty Cart" 
-                        className="w-80 h-80 object-contain mb-8"
-                    />
+                    <div className="w-48 h-48 bg-orange-50 rounded-full flex items-center justify-center mb-8 border-4 border-orange-100">
+                        <ShoppingBag size={80} className="text-swiggy-orange opacity-40" />
+                    </div>
                     <h2 className="text-2xl font-black text-secondary mb-2 tracking-tight uppercase">Your cart is empty</h2>
                     <p className="text-accent font-bold mb-8">Good food is always just a few clicks away!</p>
                     <button 
@@ -106,9 +105,9 @@ const CartPage = () => {
                                         exit={{ opacity: 0, x: -20 }}
                                         className="flex items-center gap-6 py-6 border-b last:border-b-0 border-gray-100 group"
                                     >
-                                        <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                                        <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 shadow-sm">
                                             <img 
-                                                src={item.foodItemId?.image || restaurantFallbackImg} 
+                                                src={getFoodItemImage(item.foodItemId)} 
                                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                                                 alt={item.foodItemId?.name}
                                             />

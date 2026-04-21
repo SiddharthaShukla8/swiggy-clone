@@ -12,7 +12,8 @@ import useDebounce from "../hooks/useDebounce";
 import SearchSuggestions from "../components/SearchSuggestions";
 import { Helmet } from "react-helmet-async";
 import { CategorySkeleton, RestaurantSkeleton } from "../components/skeletons/AppSkeletons";
-import api from "../services/api";
+import foodHeroImg from "../assets/images/food_hero.png";
+import { getRestaurantImage } from "../utils/restaurantImages";
 import { detectCurrentLocation } from "../services/locationService";
 import { getSiteContent } from "../services/siteContent";
 import { getRestaurantBadge } from "../utils/restaurantPresentation";
@@ -278,7 +279,7 @@ const LandingPage = () => {
                             return (
                             <div key={res._id} className="cursor-pointer group" onClick={() => navigate(`/restaurant/${res._id}`)}>
                                 <div className="relative overflow-hidden rounded-3xl mb-4 aspect-[4/3] shadow-sm group-hover:shadow-xl transition-all">
-                                    <img src={res.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                    <img src={getRestaurantImage(res)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={res.name} />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-5">
                                         <div className={`inline-flex w-fit items-center rounded-xl bg-gradient-to-r ${badgeAccent} px-3 py-2 shadow-lg`}>
                                             <div>
