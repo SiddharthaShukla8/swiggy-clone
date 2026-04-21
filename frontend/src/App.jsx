@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
+import { Toaster, toast } from 'react-hot-toast'
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { HelmetProvider } from 'react-helmet-async'
@@ -9,7 +9,11 @@ import CartConflictModal from './components/CartConflictModal'
 import { BannerSkeleton } from './components/skeletons/AppSkeletons'
 
 // Redux
-import { getCart, recalculateTotals } from './redux/slices/cartSlice'
+import { clearCartLocal, getCart, recalculateTotals } from './redux/slices/cartSlice'
+import { clearSession } from './redux/slices/authSlice'
+import { resetLocation } from './redux/slices/locationSlice'
+import { AUTH_EXPIRED_EVENT } from './services/authStorage'
+import { isLegacyFallbackLocationState } from './utils/geolocation'
 
 // Lazy loaded pages
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -34,6 +38,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 function App() {
   const dispatch = useDispatch();
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const location = useSelector((state) => state.location);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -42,6 +47,26 @@ function App() {
       dispatch(recalculateTotals());
     }
   }, [dispatch, isAuthenticated]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      dispatch(clearSession());
+      dispatch(clearCartLocal());
+      toast.error('Your session expired. Please sign in again.');
+    };
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+
+    return () => {
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    };
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (isLegacyFallbackLocationState(location)) {
+      dispatch(resetLocation());
+    }
+  }, [dispatch, location]);
 
   return (
     <HelmetProvider>

@@ -3,7 +3,7 @@ import api from "../../services/api";
 
 export const fetchNearbyRestaurants = createAsyncThunk(
     "restaurants/fetchNearby",
-    async ({ lat, lng, radius }, { rejectWithValue }) => {
+    async ({ lat, lng, radius } = {}, { rejectWithValue }) => {
         try {
             const response = await api.get("/restaurants/nearby", {
                 params: { lat, lng, radius },
@@ -16,12 +16,6 @@ export const fetchNearbyRestaurants = createAsyncThunk(
 );
 
 const initialState = {
-    location: {
-        address: "Bangalore, Karnataka",
-        lat: 12.9716,
-        lng: 77.5946,
-        isDefault: true, // Flag to indicate using fallback
-    },
     nearbyRestaurants: [],
     loading: false,
     error: null,
@@ -30,11 +24,7 @@ const initialState = {
 const restaurantSlice = createSlice({
     name: "restaurants",
     initialState,
-    reducers: {
-        setLocation: (state, action) => {
-            state.location = action.payload;
-        },
-    },
+    reducers: {},
     extraReducers: (builder) => {
         builder
             .addCase(fetchNearbyRestaurants.pending, (state) => {
@@ -52,5 +42,4 @@ const restaurantSlice = createSlice({
     },
 });
 
-export const { setLocation } = restaurantSlice.actions;
 export default restaurantSlice.reducer;

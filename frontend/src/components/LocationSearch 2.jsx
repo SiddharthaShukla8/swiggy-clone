@@ -5,7 +5,12 @@ import { setLocation } from "../redux/slices/locationSlice";
 import api from "../services/api";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
-import { detectCurrentLocation } from "../services/locationService";
+import {
+    getBestEffortPosition,
+    getGeolocationErrorMessage,
+    getGeolocationPermissionState,
+    isGeolocationSupported,
+} from "../utils/geolocation";
 
 const LocationSearch = ({ onLocationSelected }) => {
     const [query, setQuery] = useState("");
@@ -42,7 +47,6 @@ const LocationSearch = ({ onLocationSelected }) => {
             lat: s.lat,
             lng: s.lng,
             source: "search",
-            precision: "manual",
         };
         dispatch(setLocation(loc));
         setQuery(s.formatted);
@@ -50,24 +54,57 @@ const LocationSearch = ({ onLocationSelected }) => {
         if (onLocationSelected) onLocationSelected(loc);
     };
 
-    const handleCurrentLocation = async () => {
-        setLoading(true);
-        const toastId = toast.loading("Detecting your location...");
-
-        try {
-            const loc = await detectCurrentLocation();
-            dispatch(setLocation(loc));
-            setQuery(loc.address);
-            toast.success(loc.message, { id: toastId, duration: 5000 });
-            if (onLocationSelected) onLocationSelected(loc);
-        } catch (error) {
-            toast.error(error.message || "We could not detect your location right now.", {
-                id: toastId,
-                duration: 6500,
-            });
-        } finally {
-            setLoading(false);
+    const handleCurrentLocation = () => {
+        if (!isGeolocationSupported()) {
+            toast.error("Geolocation is not supported by your browser");
+            return;
         }
+
+        setLoading(true);
+        const toastId = toast.loading("Detecting your live location...");
+
+        getBestEffortPosition()
+            .then(async (pos) => {
+                const { latitude, longitude } = pos.coords;
+                try {
+                    const response = await api.get("/location/reverse-geocode", {
+                        params: { lat: latitude, lng: longitude },
+                    });
+                    const loc = {
+                        address: response.data.data.address || "Current Location",
+                        lat: latitude,
+                        lng: longitude,
+                        source: "browser",
+                    };
+                    dispatch(setLocation(loc));
+                    setQuery(loc.address);
+                    toast.success("Location detected", { id: toastId });
+                    if (onLocationSelected) onLocationSelected(loc);
+                } catch (error) {
+                    console.error("Reverse geocoding failed:", error);
+                    const loc = {
+                        address: "Current Location",
+                        lat: latitude,
+                        lng: longitude,
+                        source: "browser",
+                    };
+                    dispatch(setLocation(loc));
+                    setQuery(loc.address);
+                    toast.success("Location detected", { id: toastId });
+                    if (onLocationSelected) onLocationSelected(loc);
+                }
+            })
+            .catch(async (error) => {
+                console.error("Geolocation failed:", error);
+                const permissionState = await getGeolocationPermissionState();
+                toast.error(getGeolocationErrorMessage(error, permissionState), {
+                    id: toastId,
+                    duration: 6500,
+                });
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     };
 
     return (

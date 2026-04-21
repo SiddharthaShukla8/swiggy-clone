@@ -7,20 +7,14 @@ import { motion } from "framer-motion";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { Search, MapPin, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import api from "../services/api";
 import toast from "react-hot-toast";
 import { setLocation } from "../redux/slices/locationSlice";
 import useDebounce from "../hooks/useDebounce";
 import SearchSuggestions from "../components/SearchSuggestions";
 import { Helmet } from "react-helmet-async";
 import { CategorySkeleton, RestaurantSkeleton } from "../components/skeletons/AppSkeletons";
-import {
-    LEGACY_FALLBACK_LOCATION,
-    getBestEffortPosition,
-    getGeolocationErrorMessage,
-    getGeolocationPermissionState,
-    isGeolocationSupported,
-} from "../utils/geolocation";
+import api from "../services/api";
+import { detectCurrentLocation } from "../services/locationService";
 
 // Premium Local Assets
 import biryaniImg from "../assets/images/biryani.png";
@@ -36,7 +30,6 @@ import pizzaImg from "../assets/images/pizza.png";
 import northIndianImg from "../assets/images/north_indian.png";
 import southIndianImg from "../assets/images/south_indian.png";
 import rollsImg from "../assets/images/rolls.png";
-import restaurantFallbackImg from "../assets/images/restaurant_fallback.png";
 import dineoutPubImg from "../assets/images/dineout_pub.png";
 import dineoutFineDineImg from "../assets/images/dineout_fine_dine.png";
 import foodHeroImg from "../assets/images/food_hero.png";
@@ -44,10 +37,9 @@ import foodHeroImg from "../assets/images/food_hero.png";
 const LandingPage = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { lat, lng, address, source } = useSelector((state) => state.location) || {};
+    const { lat, lng, address, precision } = useSelector((state) => state.location) || {};
     const { nearbyRestaurants, loading } = useSelector((state) => state.restaurants) || {};
     const [isDetecting, setIsDetecting] = useState(false);
-    const lastRequestTime = React.useRef(0);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [suggestions, setSuggestions] = useState([]);
@@ -55,14 +47,6 @@ const LandingPage = () => {
     const [showSuggestions, setShowSuggestions] = useState(false);
 
     const debouncedQuery = useDebounce(searchQuery, 300);
-    const hasLegacyFallbackLocation =
-        source === null &&
-        address === LEGACY_FALLBACK_LOCATION.address &&
-        lat === LEGACY_FALLBACK_LOCATION.lat &&
-        lng === LEGACY_FALLBACK_LOCATION.lng;
-    const activeAddress = hasLegacyFallbackLocation ? null : address;
-    const activeLat = hasLegacyFallbackLocation ? null : lat;
-    const activeLng = hasLegacyFallbackLocation ? null : lng;
 
     useEffect(() => {
         const fetchSuggestions = async () => {
@@ -74,7 +58,7 @@ const LandingPage = () => {
             setIsSuggesting(true);
             setShowSuggestions(true);
             try {
-                const locParams = (activeLat && activeLng) ? `&lat=${activeLat}&lng=${activeLng}` : "";
+                const locParams = (lat && lng) ? `&lat=${lat}&lng=${lng}` : "";
                 const res = await api.get(`/restaurants/search?q=${debouncedQuery}${locParams}`);
                 setSuggestions(res.data.data.slice(0, 8));
             } catch (err) {
@@ -84,71 +68,22 @@ const LandingPage = () => {
             }
         };
         fetchSuggestions();
-    }, [debouncedQuery, activeLat, activeLng]);
+    }, [debouncedQuery, lat, lng]);
 
     const handleLocationDetection = async () => {
-        const now = Date.now();
-        // Shield against rapid triggers (throttle to 5 seconds)
-        if (isDetecting || (now - lastRequestTime.current < 5000)) {
-            console.log("Location detection suppressed to prevent flooding");
-            return;
-        }
-        
-        if (!isGeolocationSupported()) {
-            toast.error("Geolocation is not supported by your browser", { id: "location-error" });
-            return;
-        }
-
-        if (!window.isSecureContext) {
-            toast.error("Live location works only on localhost or HTTPS.", { id: "location-error" });
+        if (isDetecting) {
             return;
         }
 
         setIsDetecting(true);
-        lastRequestTime.current = now;
-        const toastId = toast.loading("Detecting your live location...");
+        const toastId = toast.loading("Detecting your location...");
 
         try {
-            const permissionState = await getGeolocationPermissionState();
-
-            if (permissionState === "denied") {
-                toast.error(
-                    "Location access is blocked in Chrome. Click the site icon near the address bar, allow Location for localhost:5173, then try again.",
-                    { id: toastId, duration: 6500 }
-                );
-                return;
-            }
-
-            const position = await getBestEffortPosition();
-            const { latitude, longitude } = position.coords;
-
-            let detectedAddress = "Current Location";
-            let detectedLabel = "Current Location";
-
-            try {
-                const res = await api.get("/location/reverse-geocode", {
-                    params: { lat: latitude, lng: longitude },
-                });
-
-                if (res.data.success) {
-                    detectedAddress = res.data.data.address || detectedAddress;
-                    detectedLabel = res.data.data.city || detectedAddress.split(",")[0] || detectedLabel;
-                }
-            } catch (error) {
-                console.error("Reverse geocode failed:", error);
-            }
-
-            dispatch(setLocation({
-                address: detectedAddress,
-                lat: latitude,
-                lng: longitude,
-                source: "browser",
-            }));
-
-            toast.success(`Located: ${detectedLabel}`, { id: toastId });
+            const detectedLocation = await detectCurrentLocation();
+            dispatch(setLocation(detectedLocation));
+            toast.success(detectedLocation.message, { id: toastId, duration: 5000 });
         } catch (error) {
-            const permissionState = await getGeolocationPermissionState();
-            toast.error(getGeolocationErrorMessage(error, permissionState), {
+            toast.error(error.message || "We could not detect your location right now.", {
                 id: toastId,
                 duration: 6500,
             });
@@ -181,8 +116,8 @@ const LandingPage = () => {
 
     useEffect(() => {
         // Load featured restaurants immediately, and refine by location once coords exist.
-        dispatch(fetchNearbyRestaurants(activeLat && activeLng ? { lat: activeLat, lng: activeLng } : {}));
-    }, [activeLat, activeLng, dispatch]);
+        dispatch(fetchNearbyRestaurants(lat && lng ? { lat, lng } : {}));
+    }, [lat, lng, dispatch]);
 
 
     return (
@@ -211,7 +146,7 @@ const LandingPage = () => {
                             <div className="flex-1 text-left px-1">
                                 <p className="text-[10px] text-accent font-black uppercase tracking-widest leading-none mb-1">Deliver to</p>
                                 <p className="w-full bg-transparent outline-none font-bold text-secondary truncate max-w-[200px]">
-                                    {isDetecting ? "Detecting your location..." : (activeAddress || "Use current location")}
+                                    {isDetecting ? "Detecting your location..." : (address || "Use current location")}
                                 </p>
                             </div>
                             <div className="bg-orange-50 p-1.5 rounded-lg text-swiggy-orange group-hover:bg-swiggy-orange group-hover:text-white transition-colors">
@@ -341,7 +276,7 @@ const LandingPage = () => {
             {/* RESTAURANT LISTING (Fallback always shown now) */}
             <div className="max-w-7xl mx-auto px-4 py-20 pb-32">
                 <h2 className="text-2xl md:text-3xl font-black text-secondary tracking-tight mb-10">
-                    {activeAddress ? `Top restaurants in ${activeAddress.split(',')[0]}` : "Featured Restaurant Chains"}
+                    {address ? `Top restaurants in ${address.split(',')[0]}${precision === "approximate" ? " (approx.)" : ""}` : "Featured Restaurant Chains"}
                 </h2>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">

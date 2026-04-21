@@ -1,11 +1,13 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../services/api";
+import { clearStoredAccessToken, setStoredAccessToken } from "../../services/authStorage";
 
 export const signupUser = createAsyncThunk(
     "auth/signup",
     async (userData, { rejectWithValue }) => {
         try {
             const response = await api.post("/auth/signup", userData);
+            setStoredAccessToken(response.data?.data?.accessToken);
             return response.data;
         } catch (error) {
             return rejectWithValue(error.response?.data?.message || "Signup failed");
@@ -18,6 +20,7 @@ export const loginUser = createAsyncThunk(
     async (credentials, { rejectWithValue }) => {
         try {
             const response = await api.post("/auth/login", credentials);
+            setStoredAccessToken(response.data?.data?.accessToken);
             return response.data;
         } catch (error) {
             return rejectWithValue(error.response?.data?.message || "Login failed");
@@ -27,13 +30,14 @@ export const loginUser = createAsyncThunk(
 
 export const logoutUser = createAsyncThunk(
     "auth/logout",
-    async (_, { rejectWithValue }) => {
+    async () => {
         try {
             await api.post("/auth/logout");
-            return null;
-        } catch (error) {
-            return rejectWithValue(error.response?.data?.message || "Logout failed");
+        } finally {
+            clearStoredAccessToken();
         }
+
+        return null;
     }
 );
 
@@ -61,6 +65,13 @@ const authSlice = createSlice({
             if (state.user) {
                 state.user.location = action.payload;
             }
+        },
+        clearSession: (state) => {
+            state.user = null;
+            state.accessToken = null;
+            state.isAuthenticated = false;
+            state.loading = false;
+            state.error = null;
         },
     },
     extraReducers: (builder) => {
@@ -105,5 +116,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { resetError, setCredentials, updateLocation } = authSlice.actions;
+export const { resetError, setCredentials, updateLocation, clearSession } = authSlice.actions;
 export default authSlice.reducer;

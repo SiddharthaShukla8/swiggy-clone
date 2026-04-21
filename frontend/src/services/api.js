@@ -1,10 +1,13 @@
 import axios from "axios";
+import {
+    clearStoredAccessToken,
+    emitAuthExpired,
+    getStoredAccessToken,
+    setStoredAccessToken,
+} from "./authStorage";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001/api/v1";
-
-const getPersistedAccessToken = () => {
-    return localStorage.getItem("swiggy_token");
-};
+let refreshPromise = null;
 
 const api = axios.create({
     baseURL: API_URL,
@@ -12,7 +15,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-    const accessToken = getPersistedAccessToken();
+    const accessToken = getStoredAccessToken();
 
     if (accessToken) {
         config.headers = config.headers || {};
@@ -27,14 +30,31 @@ api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+        const requestUrl = originalRequest?.url || "";
+        const shouldSkipRefresh =
+            originalRequest?.skipAuthRefresh ||
+            requestUrl.includes("/auth/login") ||
+            requestUrl.includes("/auth/signup") ||
+            requestUrl.includes("/auth/refresh-token");
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest?._retry && !shouldSkipRefresh) {
             originalRequest._retry = true;
 
             try {
-                // Try to refresh token
-                const refreshResponse = await axios.post(`${API_URL}/auth/refresh-token`, {}, { withCredentials: true });
-                const refreshedToken = refreshResponse.data?.data?.accessToken;
+                if (!refreshPromise) {
+                    refreshPromise = axios
+                        .post(`${API_URL}/auth/refresh-token`, {}, { withCredentials: true, skipAuthRefresh: true })
+                        .then((refreshResponse) => {
+                            const refreshedToken = refreshResponse.data?.data?.accessToken;
+                            setStoredAccessToken(refreshedToken);
+                            return refreshedToken;
+                        })
+                        .finally(() => {
+                            refreshPromise = null;
+                        });
+                }
+
+                const refreshedToken = await refreshPromise;
 
                 if (refreshedToken) {
                     originalRequest.headers = originalRequest.headers || {};
@@ -43,7 +63,8 @@ api.interceptors.response.use(
 
                 return api(originalRequest);
             } catch (refreshError) {
-                // If refresh fails, log out user (we'll implement this later)
+                clearStoredAccessToken();
+                emitAuthExpired();
                 return Promise.reject(refreshError);
             }
         }

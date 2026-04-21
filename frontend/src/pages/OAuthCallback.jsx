@@ -5,6 +5,7 @@ import { setCredentials } from "../redux/slices/authSlice";
 import api from "../services/api";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
+import { setStoredAccessToken } from "../services/authStorage";
 
 const OAuthCallback = () => {
     const [searchParams] = useSearchParams();
@@ -36,6 +37,7 @@ const OAuthCallback = () => {
                         user: userData, 
                         accessToken: token 
                     }));
+                    setStoredAccessToken(token);
 
                     toast.success(`Welcome back, ${userData.name}!`);
 

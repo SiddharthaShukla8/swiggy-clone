@@ -43,7 +43,28 @@ const getReverseGeocode = async (lat, lng) => {
     }
 };
 
+/**
+ * Get approximate location details from an IP address or the caller IP
+ * @param {string | undefined} ip - Optional public IP address to lookup
+ */
+const getIpGeolocation = async (ip) => {
+    try {
+        const response = await axios.get(`${GEOAPIFY_API_URL}/ipinfo`, {
+            params: {
+                ...(ip ? { ip } : {}),
+                apiKey: process.env.GEOAPIFY_API_KEY,
+            },
+        });
+
+        return response.data;
+    } catch (error) {
+        console.error("Geoapify IP Geolocation Error:", error.response?.data || error.message);
+        throw new Error("Failed to detect approximate location");
+    }
+};
+
 module.exports = {
     getAutocompleteSuggestions,
     getReverseGeocode,
+    getIpGeolocation,
 };

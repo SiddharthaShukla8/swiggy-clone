@@ -6,6 +6,8 @@ const initialState = {
     lng: null,
     isSet: false,
     source: null,
+    precision: null,
+    accuracy: null,
 };
 
 const locationSlice = createSlice({
@@ -13,12 +15,14 @@ const locationSlice = createSlice({
     initialState,
     reducers: {
         setLocation: (state, action) => {
-            const { address, lat, lng, source = "manual" } = action.payload;
+            const { address, lat, lng, source = "manual", precision = "manual", accuracy = null } = action.payload;
             state.address = address;
             state.lat = lat;
             state.lng = lng;
             state.isSet = true;
             state.source = source;
+            state.precision = precision;
+            state.accuracy = accuracy;
         },
         resetLocation: (state) => {
             state.address = null;
@@ -26,6 +30,8 @@ const locationSlice = createSlice({
             state.lng = null;
             state.isSet = false;
             state.source = null;
+            state.precision = null;
+            state.accuracy = null;
         },
     },
 });
