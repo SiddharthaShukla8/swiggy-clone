@@ -50,7 +50,9 @@ const SearchPage = () => {
             const filterParams = `&veg=${isVeg}&rating=${minRating}&sortBy=${sortBy}`;
             
             const res = await api.get(`/restaurants/search?q=${debouncedQuery}${locParams}${filterParams}`);
-            setResults(res.data.data);
+            // Handle new response shape {restaurants, total}
+            const data = res.data.data;
+            setResults(Array.isArray(data) ? data : (data?.restaurants || []));
             
             const params = {};
             if (debouncedQuery) params.q = debouncedQuery;
@@ -153,11 +155,14 @@ const SearchPage = () => {
                     )}
                     
                     {!loading && results.length > 0 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                            {results.map((res) => (
-                                <RestaurantCard key={res._id} restaurant={res} />
-                            ))}
-                        </div>
+                        <>
+                            <p className="text-sm font-bold text-accent mb-4">{results.length} restaurant{results.length !== 1 ? 's' : ''} found for "{debouncedQuery}"</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                                {results.map((res) => (
+                                    <RestaurantCard key={res._id} restaurant={res} />
+                                ))}
+                            </div>
+                        </>
                     )}
 
                     {!loading && query.length >= 2 && results.length === 0 && (
@@ -174,10 +179,10 @@ const SearchPage = () => {
                     {query.length < 2 && (
                         <div>
                             <h2 className="text-xl font-black text-secondary mb-8 uppercase tracking-tighter">Popular Cuisines</h2>
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                                 {popularCuisines.map((c) => (
                                     <div 
-                                        key={c.name} 
+                                        key={c.id || c.name} 
                                         onClick={() => setQuery(c.name)}
                                         className="group cursor-pointer"
                                     >
@@ -189,6 +194,9 @@ const SearchPage = () => {
                                             />
                                         </div>
                                         <p className="text-center font-black text-secondary group-hover:text-swiggy-orange transition-colors uppercase text-sm tracking-tighter">{c.name}</p>
+                                        {c.count && (
+                                            <p className="text-center text-[10px] text-accent font-bold mt-0.5">{c.count} restaurants</p>
+                                        )}
                                     </div>
                                 ))}
                             </div>

@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Navbar from "../components/Navbar";
 import api from "../services/api";
 import { addToCart, setConflict } from "../redux/slices/cartSlice";
-import { Star, Clock, Info, Plus, ChevronLeft, Search as SearchIcon } from "lucide-react";
+import { Star, Clock, Info, Plus, Minus, Search as SearchIcon, Leaf, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { fetchRestaurantReviews } from "../redux/slices/reviewSlice";
@@ -17,16 +17,22 @@ const RestaurantDetail = () => {
     const dispatch = useDispatch();
     const [restaurant, setRestaurant] = useState(null);
     const [menu, setMenu] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [menuSearch, setMenuSearch] = useState("");
+    const [menuVeg, setMenuVeg] = useState(false);
+    const [activeCategory, setActiveCategory] = useState(null);
+    const [itemQty, setItemQty] = useState({});
     const { reviews, loading: reviewsLoading } = useSelector((state) => state.reviews);
 
     useEffect(() => {
         const fetchRestaurant = async () => {
             try {
                 const res = await api.get(`/restaurants/${id}`);
-                const { restaurant: resData, menu: menuData } = res.data.data;
+                const { restaurant: resData, menu: menuData, categories: cats } = res.data.data;
                 setRestaurant(resData);
                 setMenu(menuData || []);
+                setCategories(cats || []);
             } catch (err) {
                 toast.error("Failed to load restaurant details");
                 navigate("/");
@@ -41,31 +47,33 @@ const RestaurantDetail = () => {
     const { cart } = useSelector((state) => state.cart);
     const { isAuthenticated } = useSelector((state) => state.auth);
 
+    // Filtered menu based on search/veg/category
+    const filteredMenu = useMemo(() => {
+        let items = menu;
+        if (menuVeg) items = items.filter(i => i.isVeg);
+        if (activeCategory) items = items.filter(i => i.category === activeCategory);
+        if (menuSearch.trim()) {
+            const q = menuSearch.toLowerCase();
+            items = items.filter(i => i.name.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q));
+        }
+        return items;
+    }, [menu, menuVeg, activeCategory, menuSearch]);
+
     const handleAddToCart = async (item) => {
         if (!isAuthenticated) {
             toast.error("Please sign in to add items to cart");
             return navigate("/login");
         }
-
-        // Check for restaurant conflict (Swiggy logic)
         if (cart && cart.restaurantId && cart.restaurantId !== id) {
-            dispatch(setConflict({ 
-                restaurantId: id, 
-                foodItemId: item._id, 
-                quantity: 1 
-            }));
+            dispatch(setConflict({ restaurantId: id, foodItemId: item._id, quantity: 1 }));
             return;
         }
-
         try {
-            await dispatch(addToCart({ 
-                restaurantId: id, 
-                foodItemId: item._id, 
-                quantity: 1 
-            })).unwrap();
-            toast.success(`${item.name} added to cart!`);
+            await dispatch(addToCart({ restaurantId: id, foodItemId: item._id, quantity: 1 })).unwrap();
+            setItemQty(q => ({ ...q, [item._id]: (q[item._id] || 0) + 1 }));
+            toast.success(`${item.name} added!`);
         } catch (err) {
-            toast.error(err || "Failed to add item to cart");
+            toast.error(err || "Failed to add item");
         }
     };
 
@@ -141,14 +149,61 @@ const RestaurantDetail = () => {
                 </div>
 
                 {/* Menu Section */}
-                <div className="space-y-12">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-6">
-                        <h2 className="text-2xl font-black text-secondary underline decoration-swiggy-orange decoration-4 underline-offset-8">Recommended</h2>
-                        <SearchIcon className="text-accent" size={20} />
+                <div className="space-y-8">
+                    {/* Menu controls */}
+                    <div className="border-b border-gray-100 pb-6">
+                        <div className="flex items-center justify-between mb-5">
+                            <h2 className="text-2xl font-black text-secondary underline decoration-swiggy-orange decoration-4 underline-offset-8">Menu</h2>
+                            <div className="flex items-center gap-3">
+                                {/* Veg filter */}
+                                <button
+                                    onClick={() => setMenuVeg(v => !v)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-black uppercase tracking-widest transition-all ${
+                                        menuVeg ? "bg-green-50 border-green-400 text-green-700" : "bg-white border-gray-200 text-accent"
+                                    }`}
+                                >
+                                    <Leaf size={11} /> Veg only
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Menu search */}
+                        <div className="relative flex items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-100 focus-within:border-swiggy-orange transition-colors">
+                            <SearchIcon size={16} className="text-gray-400 mr-3 flex-shrink-0" />
+                            <input
+                                type="text"
+                                value={menuSearch}
+                                onChange={e => setMenuSearch(e.target.value)}
+                                placeholder="Search in menu..."
+                                className="bg-transparent outline-none text-secondary font-medium text-sm w-full"
+                            />
+                        </div>
+
+                        {/* Category tabs */}
+                        {categories.length > 1 && (
+                            <div className="flex gap-2 mt-4 overflow-x-auto no-scrollbar pb-1">
+                                <button
+                                    onClick={() => setActiveCategory(null)}
+                                    className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
+                                        !activeCategory ? "bg-swiggy-orange text-white border-swiggy-orange" : "bg-white border-gray-200 text-accent hover:border-gray-300"
+                                    }`}
+                                >All</button>
+                                {categories.map(cat => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setActiveCategory(c => c === cat ? null : cat)}
+                                        className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border transition-all ${
+                                            activeCategory === cat ? "bg-swiggy-orange text-white border-swiggy-orange" : "bg-white border-gray-200 text-accent hover:border-gray-300"
+                                        }`}
+                                    >{cat}</button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
+                    {/* Menu items */}
                     <div className="divide-y divide-gray-100">
-                        {menu?.length > 0 ? menu.map((item) => (
+                        {filteredMenu.length > 0 ? filteredMenu.map((item) => (
                             <div key={item._id} className="py-10 flex justify-between gap-10 group">
                                 <div className="flex-1 space-y-2">
                                     <div className={`w-4 h-4 border-2 ${item.isVeg ? 'border-success' : 'border-red-500'} flex items-center justify-center rounded-sm`}>
@@ -157,27 +212,34 @@ const RestaurantDetail = () => {
                                     <h3 className="text-xl font-black text-secondary group-hover:text-swiggy-orange transition-colors">{item.name}</h3>
                                     <p className="font-heading font-black text-secondary">₹{item.price}</p>
                                     <p className="text-accent text-sm font-medium leading-relaxed max-w-lg">{item.description}</p>
+                                    {item.category && (
+                                        <span className="inline-block text-[9px] font-black uppercase tracking-widest bg-gray-100 text-accent px-2 py-0.5 rounded-full">{item.category}</span>
+                                    )}
                                 </div>
                                 <div className="relative flex-shrink-0">
                                     <div className="w-40 h-40 rounded-3xl overflow-hidden shadow-lg border border-gray-50 bg-gray-50">
-                                        <img 
-                                            src={getFoodItemImage(item)} 
-                                            alt={item.name} 
-                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                                        />
+                                        <img src={getFoodItemImage(item)} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                                     </div>
-                                    <motion.button 
-                                        whileTap={{ scale: 0.9 }}
-                                        onClick={() => handleAddToCart(item)}
-                                        className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-white text-success border border-gray-100 px-8 py-2.5 rounded-xl font-black text-sm shadow-xl hover:bg-gray-50 transition-colors uppercase tracking-widest whitespace-nowrap"
-                                    >
-                                        Add <Plus size={16} strokeWidth={4} className="inline ml-1 mb-0.5" />
-                                    </motion.button>
+                                    {itemQty[item._id] > 0 ? (
+                                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex items-center bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden">
+                                            <button onClick={() => setItemQty(q => ({ ...q, [item._id]: Math.max(0, (q[item._id]||0)-1) }))} className="px-4 py-2.5 text-swiggy-orange font-black hover:bg-gray-50 transition-colors"><Minus size={14} strokeWidth={3}/></button>
+                                            <span className="px-3 font-black text-secondary">{itemQty[item._id]}</span>
+                                            <button onClick={() => handleAddToCart(item)} className="px-4 py-2.5 text-swiggy-orange font-black hover:bg-gray-50 transition-colors"><Plus size={14} strokeWidth={3}/></button>
+                                        </div>
+                                    ) : (
+                                        <motion.button
+                                            whileTap={{ scale: 0.9 }}
+                                            onClick={() => handleAddToCart(item)}
+                                            className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-white text-success border border-gray-100 px-8 py-2.5 rounded-xl font-black text-sm shadow-xl hover:bg-gray-50 transition-colors uppercase tracking-widest whitespace-nowrap"
+                                        >
+                                            Add <Plus size={16} strokeWidth={4} className="inline ml-1 mb-0.5" />
+                                        </motion.button>
+                                    )}
                                 </div>
                             </div>
                         )) : (
                             <div className="py-20 text-center text-accent font-black italic">
-                                No items available in the menu yet.
+                                {menuSearch || menuVeg || activeCategory ? "No items match your filters." : "No items available in the menu yet."}
                             </div>
                         )}
                     </div>

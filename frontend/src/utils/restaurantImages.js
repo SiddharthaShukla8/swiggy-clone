@@ -124,11 +124,14 @@ const hashString = (str = "") => {
 export const getRestaurantImage = (restaurant) => {
     if (!restaurant) return DEFAULT_POOL[0];
 
-    // If restaurant has its own Cloudinary/S3 image, always prefer it
+    // STRICT GUARD: Only accept images that are locally bundled (relative/data URLs).
+    // Reject ALL external URLs (http/https), placeholders, and unsplash links.
+    // This permanently prevents stale DB Unsplash URLs from leaking through.
     if (
         restaurant.image &&
         typeof restaurant.image === "string" &&
         restaurant.image.length > 10 &&
+        !restaurant.image.startsWith("http") &&
         !restaurant.image.includes("placeholder") &&
         !restaurant.image.includes("unsplash")
     ) {
@@ -162,11 +165,13 @@ export const getRestaurantImage = (restaurant) => {
 export const getFoodItemImage = (item) => {
     if (!item) return foodHeroImg;
 
-    // Prefer uploaded image (Cloudinary/S3), skip bad URLs
+    // STRICT GUARD: Only accept images that are locally bundled (relative/data URLs).
+    // Reject ALL external URLs (http/https), placeholders, and unsplash links.
     if (
         item.image &&
         typeof item.image === "string" &&
         item.image.length > 10 &&
+        !item.image.startsWith("http") &&
         !item.image.includes("placeholder") &&
         !item.image.includes("unsplash")
     ) {

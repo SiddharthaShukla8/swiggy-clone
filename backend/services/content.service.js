@@ -1,28 +1,141 @@
 const Restaurant = require("../models/restaurant.model");
 const FoodItem = require("../models/foodItem.model");
 
+// ─── All available local image filenames (backend/public/images/) ─────────────
+// These are the ONLY images we ever serve — zero external dependencies.
+const ALL_LOCAL_IMAGES = [
+    "biryani.png",
+    "burger.png",
+    "chinese.png",
+    "dairy.png",
+    "dessert.png",
+    "fruits.png",
+    "masala.png",
+    "north_indian.png",
+    "pizza.png",
+    "promo_food.png",
+    "promo_instamart.png",
+    "rolls.png",
+    "south_indian.png",
+    "staples.png",
+    "veg.png",
+];
+
+// ─── Exhaustive cuisine/category → image mapping ──────────────────────────────
+// Covers every conceivable term a restaurant or food-item might use.
+// Falls back to hash-picking from ALL_LOCAL_IMAGES — never promo_food.png alone.
 const CATEGORY_IMAGE_MAP = {
+    // Biryani & Mughlai
     biryani: "biryani.png",
+    hyderabadi: "biryani.png",
+    mughlai: "biryani.png",
+    awadhi: "biryani.png",
+    dum: "biryani.png",
+
+    // North Indian
+    "north indian": "north_indian.png",
+    punjabi: "north_indian.png",
+    rajasthani: "north_indian.png",
+    chettinad: "north_indian.png",
+    kebabs: "north_indian.png",
+    tandoori: "north_indian.png",
+    "main course": "north_indian.png",
+
+    // South Indian
+    "south indian": "south_indian.png",
+    kerala: "south_indian.png",
+    andhra: "south_indian.png",
+    dosa: "south_indian.png",
+    idli: "south_indian.png",
+    seafood: "south_indian.png",
+    fish: "south_indian.png",
+
+    // Pizza / Italian / Continental
+    pizza: "pizza.png",
+    pizzas: "pizza.png",
+    italian: "pizza.png",
+    pasta: "pizza.png",
+    continental: "pizza.png",
+    "fine dining": "pizza.png",
+
+    // Burger / Fast Food / Rolls
     burger: "burger.png",
     burgers: "burger.png",
-    chinese: "chinese.png",
-    dessert: "dessert.png",
-    desserts: "dessert.png",
-    dairy: "dairy.png",
-    fruits: "fruits.png",
-    "north indian": "north_indian.png",
-    "south indian": "south_indian.png",
-    pizza: "pizza.png",
+    "fast food": "burger.png",
+    american: "burger.png",
+    sandwiches: "burger.png",
+    sandwich: "burger.png",
+    wraps: "rolls.png",
     rolls: "rolls.png",
-    staples: "staples.png",
-    "rice, atta and dals": "staples.png",
-    "atta and dals": "staples.png",
+    roll: "rolls.png",
+    frankie: "rolls.png",
+
+    // Chinese / Asian / Japanese
+    chinese: "chinese.png",
+    asian: "chinese.png",
+    thai: "chinese.png",
+    japanese: "chinese.png",
+    sushi: "chinese.png",
+    ramen: "chinese.png",
+    noodles: "chinese.png",
+    dimsum: "chinese.png",
+    "dim sum": "chinese.png",
+
+    // Desserts / Sweets / Bakery
+    desserts: "dessert.png",
+    dessert: "dessert.png",
+    bakery: "dessert.png",
+    cakes: "dessert.png",
+    "ice cream": "dessert.png",
+    icecream: "dessert.png",
+    sweets: "dessert.png",
+    mithai: "dessert.png",
+    waffle: "dessert.png",
+    waffles: "dessert.png",
+
+    // Cafe / Coffee / Pub / Bar
+    cafe: "promo_food.png",
+    coffee: "promo_food.png",
+    beverages: "promo_food.png",
+    pub: "promo_instamart.png",
+    bar: "promo_instamart.png",
+    brewery: "promo_instamart.png",
+
+    // Healthy / Salads / Vegan / Vegetarian
+    healthy: "veg.png",
+    salads: "veg.png",
+    salad: "veg.png",
+    vegan: "veg.png",
+    vegetarian: "veg.png",
     vegetables: "veg.png",
     "fresh vegetables": "veg.png",
     veg: "veg.png",
+
+    // Grocery / Instamart
+    grocery: "staples.png",
+    instamart: "promo_instamart.png",
+    staples: "staples.png",
+    "rice, atta and dals": "staples.png",
+    "atta and dals": "staples.png",
+    rice: "staples.png",
+    dal: "staples.png",
+    dals: "staples.png",
+
+    // Dairy / Fruits / Dry Fruits
+    dairy: "dairy.png",
+    milk: "dairy.png",
+    paneer: "dairy.png",
+    fruits: "fruits.png",
+    fruit: "fruits.png",
+    "dry fruits": "fruits.png",
+    "dry fruit": "fruits.png",
+    nuts: "fruits.png",
+
+    // Masalas / Spices
     masala: "masala.png",
     masalas: "masala.png",
-    "dry fruits": "fruits.png",
+    spices: "masala.png",
+    "pickles and condiments": "masala.png",
 };
 
 const DEFAULT_DISCOVERY_TERMS = [
@@ -75,9 +188,73 @@ const buildOrigin = (req) => {
 
 const buildImageUrl = (req, imageName) => `${buildOrigin(req)}/images/${imageName}`;
 
+/**
+ * Deterministic hash: same string → same non-negative integer.
+ * Used to spread restaurants/categories across the image pool.
+ */
+const hashString = (str = "") => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = (hash * 31 + str.charCodeAt(i)) & 0x7fffffff;
+    }
+    return hash;
+};
+
+/**
+ * Returns a LOCAL image filename for a given cuisine/category term.
+ * If no direct match, falls back to a deterministic pick from ALL_LOCAL_IMAGES
+ * so different unknown terms get DIFFERENT images.
+ *
+ * @param {string} term
+ * @returns {string} image filename (not URL)
+ */
 const getImageNameForTerm = (term) => {
     const normalized = normalizeKey(term);
-    return CATEGORY_IMAGE_MAP[normalized] || "promo_food.png";
+
+    // Exact match
+    if (CATEGORY_IMAGE_MAP[normalized]) {
+        return CATEGORY_IMAGE_MAP[normalized];
+    }
+
+    // Partial match — check if any CATEGORY_IMAGE_MAP key is a substring of term or vice-versa
+    for (const [key, img] of Object.entries(CATEGORY_IMAGE_MAP)) {
+        if (normalized.includes(key) || key.includes(normalized)) {
+            return img;
+        }
+    }
+
+    // Deterministic fallback — spread unknowns across the full local pool
+    return ALL_LOCAL_IMAGES[hashString(normalized) % ALL_LOCAL_IMAGES.length];
+};
+
+/**
+ * Resolves a local image URL for a restaurant based on its cuisines array.
+ * Never touches restaurant.image (could be a broken external URL from seed data).
+ *
+ * @param {object} req - Express request (for origin building)
+ * @param {object} restaurant - Restaurant document
+ * @returns {string} fully-qualified local image URL
+ */
+const resolveRestaurantImageUrl = (req, restaurant) => {
+    const id = String(restaurant._id || restaurant.name || "");
+    const cuisines = (restaurant.cuisines || []).map((c) => normalizeKey(c));
+
+    for (const cuisine of cuisines) {
+        // Exact match
+        if (CATEGORY_IMAGE_MAP[cuisine]) {
+            return buildImageUrl(req, CATEGORY_IMAGE_MAP[cuisine]);
+        }
+        // Partial match
+        for (const [key, img] of Object.entries(CATEGORY_IMAGE_MAP)) {
+            if (cuisine.includes(key) || key.includes(cuisine)) {
+                return buildImageUrl(req, img);
+            }
+        }
+    }
+
+    // Final fallback: hash the restaurant ID across the image pool for variety
+    const fallbackImage = ALL_LOCAL_IMAGES[hashString(id) % ALL_LOCAL_IMAGES.length];
+    return buildImageUrl(req, fallbackImage);
 };
 
 const toSearchHref = ({ q, sortBy, rating, veg } = {}) => {
@@ -116,8 +293,8 @@ const uniqueByName = (items) => {
     });
 };
 
-const buildDiscoveryItems = (req, names, limit) => {
-    return uniqueByName(
+const buildDiscoveryItems = async (req, names, limit) => {
+    const unique = uniqueByName(
         names.map((name) => ({
             id: normalizeKey(name).replace(/\s+/g, "-"),
             name,
@@ -125,6 +302,23 @@ const buildDiscoveryItems = (req, names, limit) => {
             href: toSearchHref({ q: name }),
         }))
     ).slice(0, limit);
+
+    // Enrich with live restaurant counts
+    const withCounts = await Promise.all(
+        unique.map(async (item) => {
+            try {
+                const count = await Restaurant.countDocuments({
+                    isApproved: true,
+                    cuisines: { $regex: new RegExp(item.name, "i") },
+                });
+                return { ...item, count };
+            } catch {
+                return item;
+            }
+        })
+    );
+
+    return withCounts;
 };
 
 const getTopFoodCategories = async (limit = 12) => {
@@ -174,11 +368,11 @@ const getTopRestaurantCuisines = async (limit = 12) => {
     return results.map((entry) => entry._id).filter(Boolean);
 };
 
-const getSpotlightRestaurants = async (limit = 6) => {
+const getSpotlightRestaurants = async (limit = 8) => {
     return Restaurant.find({ isApproved: true })
         .sort({ averageRating: -1, totalReviews: -1, createdAt: -1 })
         .limit(limit)
-        .select("name image cuisines averageRating deliveryTime")
+        .select("name image cuisines averageRating deliveryTime isPureVeg")
         .lean();
 };
 
@@ -200,7 +394,8 @@ const buildSpotlightCards = (req, restaurants) => {
     return restaurants.map((restaurant) => ({
         id: restaurant._id.toString(),
         name: restaurant.name,
-        imageUrl: restaurant.image || buildImageUrl(req, "promo_food.png"),
+        // Always resolve from cuisines — never use restaurant.image (may be external/broken)
+        imageUrl: resolveRestaurantImageUrl(req, restaurant),
         cuisines: restaurant.cuisines || [],
         averageRating: restaurant.averageRating || 0,
         deliveryTime: restaurant.deliveryTime || 30,
@@ -228,9 +423,7 @@ const buildNavigationLinks = (featuredItems) => {
     ];
 };
 
-const buildHeroCards = (req, metrics, spotlightRestaurants) => {
-    const featuredRestaurantImage = spotlightRestaurants[0]?.imageUrl || buildImageUrl(req, "promo_instamart.png");
-
+const buildHeroCards = (req, metrics) => {
     return [
         {
             id: "food-delivery",
@@ -248,16 +441,16 @@ const buildHeroCards = (req, metrics, spotlightRestaurants) => {
             badge: `${metrics.topRatedRestaurants}+ rated 4.0+`,
             actionLabel: "Browse",
             href: toSearchHref({ sortBy: "rating", rating: 4 }),
-            imageUrl: featuredRestaurantImage,
+            imageUrl: buildImageUrl(req, "promo_instamart.png"),
         },
     ];
 };
 
 const buildSiteContent = async (req) => {
     const [topFoodCategories, topRestaurantCuisines, spotlightRestaurants, metrics] = await Promise.all([
-        getTopFoodCategories(),
-        getTopRestaurantCuisines(),
-        getSpotlightRestaurants(),
+        getTopFoodCategories(10),
+        getTopRestaurantCuisines(10),
+        getSpotlightRestaurants(8),
         getRestaurantMetrics(),
     ]);
 
@@ -272,14 +465,15 @@ const buildSiteContent = async (req) => {
         ...DEFAULT_DISCOVERY_TERMS,
     ];
 
-    const featuredCategories = buildDiscoveryItems(req, featuredCategoryNames, 8);
-    const curatedCollections = buildDiscoveryItems(
-        req,
-        collectionNames.filter(
-            (name) => !featuredCategories.some((item) => normalizeKey(item.name) === normalizeKey(name))
-        ),
-        5
-    );
+    const [featuredCategories, allCollectionCandidates] = await Promise.all([
+        buildDiscoveryItems(req, featuredCategoryNames, 10),
+        buildDiscoveryItems(req, collectionNames, 20),
+    ]);
+
+    const curatedCollections = allCollectionCandidates
+        .filter((item) => !featuredCategories.some((fc) => normalizeKey(fc.name) === normalizeKey(item.name)))
+        .slice(0, 6);
+
     const spotlightCards = buildSpotlightCards(req, spotlightRestaurants);
     const menuCategories = uniqueByName(
         [...topFoodCategories, ...DEFAULT_DISCOVERY_TERMS].map((name) => ({ name }))
@@ -294,7 +488,7 @@ const buildSiteContent = async (req) => {
                 title: "Deliciousness delivered right to your doorstep.",
                 subtitle: "Discover approved restaurants, popular cuisines and live delivery options around you.",
                 searchPlaceholder: "Search for restaurant, item or more",
-                primaryCards: buildHeroCards(req, metrics, spotlightCards),
+                primaryCards: buildHeroCards(req, metrics),
             },
             featuredCategoriesSection: {
                 title: "Order our best food options",

@@ -13,7 +13,7 @@ const MONGO_URI = process.env.MONGODB_URI;
 const restaurants = [
     {
         name: "The Gourmet Hub",
-        image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=60",
+        image: "",
         cuisines: ["North Indian", "Continental"],
         averageRating: 4.5,
         deliveryTime: 25,
@@ -26,7 +26,7 @@ const restaurants = [
     },
     {
         name: "Burger Castle",
-        image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&auto=format&fit=crop&q=60",
+        image: "",
         cuisines: ["American", "Fast Food"],
         averageRating: 4.2,
         deliveryTime: 20,
@@ -39,7 +39,7 @@ const restaurants = [
     },
     {
         name: "Pizza Paradise",
-        image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&auto=format&fit=crop&q=60",
+        image: "",
         cuisines: ["Italian", "Pizzas"],
         averageRating: 4.8,
         deliveryTime: 30,
@@ -52,7 +52,7 @@ const restaurants = [
     },
     {
         name: "Biryani Blues",
-        image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=60",
+        image: "",
         cuisines: ["Hyderabadi", "Biryani"],
         averageRating: 4.6,
         deliveryTime: 35,
@@ -65,7 +65,7 @@ const restaurants = [
     },
     {
         name: "Royal Chinese",
-        image: "https://images.unsplash.com/photo-1512058560366-cd2427ffaa96?w=800&auto=format&fit=crop&q=60",
+        image: "",
         cuisines: ["Chinese", "Asian"],
         averageRating: 4.3,
         deliveryTime: 25,
@@ -83,7 +83,7 @@ const foodItems = [
         name: "Premium Veg Platter",
         description: "Assorted vegetables grilled to perfection with signature spices.",
         price: 499,
-        image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=60",
+        image: "",
         category: "Main Course",
         isVegetarian: true
     },
@@ -91,7 +91,7 @@ const foodItems = [
         name: "Classic Cheese Burger",
         description: "Juicy patty with melted cheddar and fresh lettuce.",
         price: 299,
-        image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&auto=format&fit=crop&q=60",
+        image: "",
         category: "Fast Food",
         isVegetarian: false
     },
@@ -99,7 +99,7 @@ const foodItems = [
         name: "Pepperoni Pizza",
         description: "Classic pizza with spicy pepperoni and double cheese.",
         price: 599,
-        image: "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&auto=format&fit=crop&q=60",
+        image: "",
         category: "Pizzas",
         isVegetarian: false
     },
@@ -107,7 +107,7 @@ const foodItems = [
         name: "Hydrabadi Chicken Biryani",
         description: "Authentic slow-cooked biryani with tender chicken pieces.",
         price: 450,
-        image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400&auto=format&fit=crop&q=60",
+        image: "",
         category: "Biryani",
         isVegetarian: false
     }
