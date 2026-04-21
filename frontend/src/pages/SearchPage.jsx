@@ -1,23 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { Search as SearchIcon, X, Filter, Star, Clock, MapPin, ChevronDown } from "lucide-react";
+import { Search as SearchIcon, X, Filter, ChevronDown } from "lucide-react";
 import api from "../services/api";
 import RestaurantCard from "../components/RestaurantCard";
 import useDebounce from "../hooks/useDebounce";
-import { motion, AnimatePresence } from "framer-motion";
 import { Helmet } from "react-helmet-async";
 import { RestaurantSkeleton } from "../components/skeletons/AppSkeletons";
-
-// Premium Local Assets
-import biryaniImg from "../assets/images/biryani.png";
-import burgerImg from "../assets/images/burger.png";
-import pizzaImg from "../assets/images/pizza.png";
-import dessertsImg from "../assets/images/desserts.png";
-import chineseImg from "../assets/images/chinese.png";
-import northIndianImg from "../assets/images/north_indian.png";
+import { getSiteContent } from "../services/siteContent";
 
 const SearchPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -26,12 +17,27 @@ const SearchPage = () => {
     const [query, setQuery] = useState(initialQuery);
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [sortBy, setSortBy] = useState("relevance");
-    const [isVeg, setIsVeg] = useState(false);
-    const [minRating, setMinRating] = useState(0);
+    const [sortBy, setSortBy] = useState(searchParams.get("sortBy") || "relevance");
+    const [isVeg, setIsVeg] = useState(searchParams.get("veg") === "true");
+    const [minRating, setMinRating] = useState(Number(searchParams.get("rating") || 0));
+    const [searchContent, setSearchContent] = useState(null);
+    const [showFilters, setShowFilters] = useState(true);
     
     const { lat, lng } = useSelector((state) => state.location);
     const debouncedQuery = useDebounce(query, 500);
+    const sortOptions = searchContent?.search?.sortOptions || [];
+    const popularCuisines = searchContent?.search?.popularCuisines || [];
+    const emptyStateSuggestions = searchContent?.search?.emptyStateSuggestions || [];
+
+    useEffect(() => {
+        getSiteContent()
+            .then((content) => {
+                setSearchContent(content);
+            })
+            .catch((error) => {
+                console.error("Failed to load search content", error);
+            });
+    }, []);
 
     const fetchResults = async () => {
         if (debouncedQuery.trim().length < 2) {
@@ -46,8 +52,12 @@ const SearchPage = () => {
             const res = await api.get(`/restaurants/search?q=${debouncedQuery}${locParams}${filterParams}`);
             setResults(res.data.data);
             
-            // Sync URL
-            setSearchParams({ q: debouncedQuery });
+            const params = {};
+            if (debouncedQuery) params.q = debouncedQuery;
+            if (sortBy !== "relevance") params.sortBy = sortBy;
+            if (isVeg) params.veg = "true";
+            if (minRating) params.rating = String(minRating);
+            setSearchParams(params);
         } catch (err) {
             console.error("Search failed:", err);
         } finally {
@@ -72,7 +82,7 @@ const SearchPage = () => {
                         type="text" 
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search for restaurants and food" 
+                        placeholder={searchContent?.landing?.hero?.searchPlaceholder || "Search for restaurants and food"} 
                         className="w-full bg-transparent outline-none text-lg font-black text-secondary px-4 h-10 placeholder:text-gray-300 placeholder:font-bold"
                         autoFocus
                     />
@@ -85,42 +95,56 @@ const SearchPage = () => {
 
                 {/* Filter Bar */}
                 <div className="max-w-4xl mx-auto mt-6 flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-full shadow-sm hover:border-swiggy-orange cursor-pointer transition-all">
+                    <button
+                        onClick={() => setShowFilters((current) => !current)}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-full shadow-sm hover:border-swiggy-orange cursor-pointer transition-all"
+                    >
                         <Filter size={14} className="text-swiggy-orange" />
-                        <span className="text-xs font-black uppercase tracking-widest text-secondary">Filters</span>
-                    </div>
-
-                    <button 
-                        onClick={() => setIsVeg(!isVeg)}
-                        className={`px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all ${isVeg ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-gray-100 text-accent hover:border-gray-200'}`}
-                    >
-                        Pure Veg
+                        <span className="text-xs font-black uppercase tracking-widest text-secondary">
+                            {showFilters ? "Hide Filters" : "Show Filters"}
+                        </span>
                     </button>
 
-                    <button 
-                        onClick={() => setMinRating(minRating === 4 ? 0 : 4)}
-                        className={`px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all ${minRating === 4 ? 'bg-orange-50 border-orange-200 text-swiggy-orange' : 'bg-white border-gray-100 text-accent hover:border-gray-200'}`}
-                    >
-                        Ratings 4.0+
-                    </button>
+                    {showFilters && (
+                        <>
+                            <button 
+                                onClick={() => setIsVeg(!isVeg)}
+                                className={`px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all ${isVeg ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-gray-100 text-accent hover:border-gray-200'}`}
+                            >
+                                Pure Veg
+                            </button>
 
-                    <div className="relative group ml-auto">
-                        <button className="flex items-center gap-2 px-6 py-2 bg-white border border-gray-100 rounded-full text-[10px] font-black uppercase tracking-widest text-secondary hover:border-swiggy-orange transition-all">
-                            Sort By: <span className="text-swiggy-orange">{sortBy}</span>
-                            <ChevronDown size={14} />
-                        </button>
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-2">
-                            {['relevance', 'rating', 'deliveryTime', 'distance'].map(opt => (
-                                <button 
-                                    key={opt}
-                                    onClick={() => setSortBy(opt)}
-                                    className={`w-full text-left px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all ${sortBy === opt ? 'text-swiggy-orange' : 'text-accent'}`}
-                                >
-                                    {opt}
+                            <button 
+                                onClick={() => setMinRating(minRating === 4 ? 0 : 4)}
+                                className={`px-4 py-2 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all ${minRating === 4 ? 'bg-orange-50 border-orange-200 text-swiggy-orange' : 'bg-white border-gray-100 text-accent hover:border-gray-200'}`}
+                            >
+                                Ratings 4.0+
+                            </button>
+
+                            <div className="relative group ml-auto">
+                                <button className="flex items-center gap-2 px-6 py-2 bg-white border border-gray-100 rounded-full text-[10px] font-black uppercase tracking-widest text-secondary hover:border-swiggy-orange transition-all">
+                                    Sort By: <span className="text-swiggy-orange">{sortBy}</span>
+                                    <ChevronDown size={14} />
                                 </button>
-                            ))}
+                                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 p-2">
+                                    {sortOptions.map(opt => (
+                                        <button 
+                                            key={opt.id}
+                                            onClick={() => setSortBy(opt.id)}
+                                            className={`w-full text-left px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all ${sortBy === opt.id ? 'text-swiggy-orange' : 'text-accent'}`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                    {!showFilters && (
+                        <div className="ml-auto text-[10px] font-black uppercase tracking-widest text-accent">
+                            {`${isVeg ? "Veg" : "All"} • ${minRating ? `${minRating}+ Rating` : "Any Rating"} • ${sortBy}`}
                         </div>
-                    </div>
+                    )}
                 </div>
                 
                 <div className="mt-12">
@@ -139,7 +163,11 @@ const SearchPage = () => {
                     {!loading && query.length >= 2 && results.length === 0 && (
                         <div className="text-center py-20">
                             <p className="text-2xl font-black text-secondary italic">No matches found for "{query}"</p>
-                            <p className="text-accent font-bold mt-2">Try searching for Pizza, Burger or North Indian</p>
+                            <p className="text-accent font-bold mt-2">
+                                {emptyStateSuggestions.length > 0
+                                    ? `Try searching for ${emptyStateSuggestions.join(", ")}`
+                                    : "Try searching for a popular cuisine"}
+                            </p>
                         </div>
                     )}
 
@@ -147,14 +175,7 @@ const SearchPage = () => {
                         <div>
                             <h2 className="text-xl font-black text-secondary mb-8 uppercase tracking-tighter">Popular Cuisines</h2>
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                                {[
-                                    { name: "Biryani", img: biryaniImg },
-                                    { name: "Burgers", img: burgerImg },
-                                    { name: "Pizza", img: pizzaImg },
-                                    { name: "Desserts", img: dessertsImg },
-                                    { name: "Chinese", img: chineseImg },
-                                    { name: "North Indian", img: northIndianImg },
-                                ].map((c) => (
+                                {popularCuisines.map((c) => (
                                     <div 
                                         key={c.name} 
                                         onClick={() => setQuery(c.name)}
@@ -162,7 +183,7 @@ const SearchPage = () => {
                                     >
                                         <div className="aspect-square bg-white rounded-3xl p-1 border-2 border-gray-50 shadow-sm group-hover:border-swiggy-orange group-hover:shadow-md transition-all overflow-hidden mb-3">
                                             <img 
-                                                src={c.img} 
+                                                src={c.imageUrl} 
                                                 alt={c.name} 
                                                 className="w-full h-full object-cover rounded-2xl group-hover:scale-110 transition-transform duration-500" 
                                             />

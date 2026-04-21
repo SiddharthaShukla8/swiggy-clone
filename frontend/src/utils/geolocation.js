@@ -4,6 +4,8 @@ const GEOLOCATION_ERROR_CODES = {
     TIMEOUT: 3,
 };
 
+// Only used to purge stale persisted state from older builds.
+// This is not an active location fallback in the current app flow.
 export const LEGACY_FALLBACK_LOCATION = {
     address: "MG Road, Bangalore, Karnataka",
     lat: 12.9716,

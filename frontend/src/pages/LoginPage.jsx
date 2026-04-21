@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate, Link } from "react-router-dom";
-import { loginUser, resetError } from "../redux/slices/authSlice";
+import React, { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
-import { Mail, Lock, ArrowRight, Loader2, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
+import { getSiteContent } from "../services/siteContent";
 
 const getAuthBaseUrl = () => {
     const configuredApiUrl = import.meta.env.VITE_API_URL;
@@ -20,6 +20,7 @@ const getAuthBaseUrl = () => {
 const LoginPage = () => {
     const navigate = useNavigate();
     const { isAuthenticated, user } = useSelector((state) => state.auth);
+    const [roleCards, setRoleCards] = useState([]);
 
     useEffect(() => {
         if (isAuthenticated && user) {
@@ -30,34 +31,20 @@ const LoginPage = () => {
         }
     }, [isAuthenticated, user, navigate]);
 
+    useEffect(() => {
+        getSiteContent()
+            .then((content) => {
+                setRoleCards(content?.auth?.roleCards || []);
+            })
+            .catch((error) => {
+                console.error("Failed to load role cards", error);
+            });
+    }, []);
+
     const handleGoogleLogin = (role) => {
         // Redirect to backend OAuth route with the selected role
         window.location.href = `${getAuthBaseUrl()}/auth/google?role=${role}`;
     };
-
-    const roles = [
-        {
-            id: "CUSTOMER",
-            title: "Customer",
-            description: "Order food and track deliveries",
-            icon: "🍔",
-            color: "from-orange-400 to-swiggy-orange"
-        },
-        {
-            id: "RESTAURANT_OWNER",
-            title: "Restaurant Owner",
-            description: "Manage your menu and orders",
-            icon: "🏪",
-            color: "from-blue-400 to-blue-600"
-        },
-        {
-            id: "DELIVERY_PARTNER",
-            title: "Delivery Partner",
-            description: "Deliver orders and earn money",
-            icon: "🛵",
-            color: "from-green-400 to-green-600"
-        }
-    ];
 
     return (
         <div className="min-h-screen bg-[#f1f1f6] pt-24 pb-20 font-sans">
@@ -75,7 +62,7 @@ const LoginPage = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {roles.map((role, i) => (
+                    {roleCards.map((role, i) => (
                         <motion.div
                             key={role.id}
                             initial={{ opacity: 0, y: 30 }}

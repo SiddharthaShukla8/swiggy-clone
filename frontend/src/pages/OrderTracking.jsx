@@ -89,7 +89,11 @@ const OrderTracking = () => {
 
     // Initial map positions
     const customerPos = [order.deliveryAddress.lat || 12.9716, order.deliveryAddress.lng || 77.6033];
-    const restaurantPos = [12.9719, 77.6412]; // Simulated restaurant pos for demo
+    const restaurantPos = order.restaurantId?.location?.coordinates
+        ? [order.restaurantId.location.coordinates[1], order.restaurantId.location.coordinates[0]]
+        : customerPos;
+    const etaMinutes = order.restaurantId?.deliveryTime || 25;
+    const supportAction = order.deliveryPartnerId?.phone ? `tel:${order.deliveryPartnerId.phone}` : null;
 
     return (
         <div className="min-h-screen bg-white">
@@ -140,7 +144,7 @@ const OrderTracking = () => {
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <p className="text-xs text-accent uppercase font-black tracking-widest mb-1">Estimated Arrival</p>
-                            <h2 className="text-4xl font-black text-secondary">25 Mins</h2>
+                            <h2 className="text-4xl font-black text-secondary">{etaMinutes} Mins</h2>
                         </div>
                         <div className="bg-success/10 text-success p-3 rounded-2xl">
                             <Clock size={32} />
@@ -175,10 +179,18 @@ const OrderTracking = () => {
                     </div>
 
                     <div className="mt-auto p-6 bg-gray-50 rounded-3xl border border-gray-100 text-center">
-                        <p className="text-accent text-sm mb-4">Need help with your order?</p>
-                        <button className="w-full bg-secondary text-white py-3 rounded-2xl font-bold hover:bg-black transition-all">
-                            Contact Support
-                        </button>
+                        <p className="text-accent text-sm mb-4">
+                            {supportAction ? "Need help with your order? Reach your delivery partner directly." : "Your order updates will appear here in real time."}
+                        </p>
+                        {supportAction ? (
+                            <a href={supportAction} className="block w-full bg-secondary text-white py-3 rounded-2xl font-bold hover:bg-black transition-all">
+                                Call Delivery Partner
+                            </a>
+                        ) : (
+                            <button className="w-full bg-secondary/60 text-white py-3 rounded-2xl font-bold cursor-not-allowed">
+                                Awaiting Delivery Partner
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

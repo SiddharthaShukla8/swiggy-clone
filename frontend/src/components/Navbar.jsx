@@ -1,12 +1,12 @@
-import React, { useState } from "react";
-import { Search, ShoppingCart, User, ChevronDown, LogOut, Bell, ShoppingBag } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Search, ShoppingCart, User, ChevronDown, LogOut, ShoppingBag } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { logoutUser } from "../redux/slices/authSlice";
-import { useSocket } from "../context/SocketContext";
 import NotificationBell from "./NotificationBell";
 import toast from "react-hot-toast";
+import { getSiteContent } from "../services/siteContent";
 
 const Navbar = () => {
     const dispatch = useDispatch();
@@ -14,8 +14,19 @@ const Navbar = () => {
     const { isAuthenticated, user } = useSelector((state) => state.auth);
     const { cart } = useSelector((state) => state.cart);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [navLinks, setNavLinks] = useState([]);
     
     const cartCount = cart?.items?.length || 0;
+
+    useEffect(() => {
+        getSiteContent()
+            .then((content) => {
+                setNavLinks(content?.header?.navLinks || []);
+            })
+            .catch(() => {
+                setNavLinks([]);
+            });
+    }, []);
 
     const getDashboardPath = () => {
         if (!user) return "/login";
@@ -51,8 +62,15 @@ const Navbar = () => {
 
                     {/* Navigation Links */}
                     <div className="hidden lg:flex items-center gap-10 text-white/90 font-bold text-sm">
-                        <span className="hover:text-white cursor-pointer transition-colors">Swiggy Corporate</span>
-                        <span className="hover:text-white cursor-pointer transition-colors">Partner with us</span>
+                        {navLinks.map((link) => (
+                            <Link
+                                key={link.id}
+                                to={link.href}
+                                className="hover:text-white cursor-pointer transition-colors"
+                            >
+                                {link.label}
+                            </Link>
+                        ))}
                     </div>
                 </div>
 

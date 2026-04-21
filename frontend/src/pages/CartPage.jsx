@@ -10,8 +10,6 @@ import toast from "react-hot-toast";
 import { Tag, Ticket } from "lucide-react";
 
 // Premium Local Assets
-import biryaniImg from "../assets/images/biryani.png";
-import foodHeroImg from "../assets/images/food_hero.png";
 import restaurantFallbackImg from "../assets/images/restaurant_fallback.png";
 
 const CartPage = () => {
@@ -100,9 +98,9 @@ const CartPage = () => {
                         
                         <div className="space-y-8">
                             <AnimatePresence>
-                                {cart.items.filter(item => item && item.foodItemId).map((item) => (
+                                {cart.items.filter(item => item && item.foodItemId).map((item, index) => (
                                     <motion.div 
-                                        key={item.foodItemId?._id || Math.random()}
+                                        key={item.foodItemId?._id || `${cart?._id || "cart"}-${index}`}
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, x: -20 }}

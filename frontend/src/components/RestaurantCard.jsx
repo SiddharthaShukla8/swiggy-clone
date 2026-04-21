@@ -3,6 +3,7 @@ import { Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import restaurantFallbackImg from "../assets/images/restaurant_fallback.png";
+import { getRestaurantBadge } from "../utils/restaurantPresentation";
 
 const RestaurantCard = ({ restaurant }) => {
     const navigate = useNavigate();
@@ -15,8 +16,12 @@ const RestaurantCard = ({ restaurant }) => {
         cuisines = [], 
         averageRating, 
         deliveryTime, 
-        image 
+        image,
     } = restaurant;
+    const badge = getRestaurantBadge(restaurant);
+    const badgeAccent = badge.accent === "veg"
+        ? "bg-gradient-to-r from-green-500 to-emerald-500"
+        : "bg-gradient-to-r from-swiggy-orange to-primary";
 
     return (
         <motion.div
@@ -33,8 +38,8 @@ const RestaurantCard = ({ restaurant }) => {
                 />
                 
                 {/* Offer Badge Overlay - High fidelity */}
-                <div className="absolute top-4 left-4 bg-gradient-to-r from-swiggy-orange to-primary text-white text-[11px] font-black px-3 py-1.5 rounded-lg shadow-xl uppercase tracking-tighter">
-                    {Math.random() > 0.5 ? "BOGO 1+1" : "60% OFF UPTO ₹120"}
+                <div className={`absolute top-4 left-4 ${badgeAccent} text-white text-[11px] font-black px-3 py-1.5 rounded-lg shadow-xl uppercase tracking-tighter`}>
+                    {badge.title}
                 </div>
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">

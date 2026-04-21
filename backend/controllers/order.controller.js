@@ -213,7 +213,7 @@ const getMyOrders = asyncHandler(async (req, res) => {
 
 const getMyOrderById = asyncHandler(async (req, res) => {
     const order = await Order.findOne({ _id: req.params.id, userId: req.user._id })
-        .populate("restaurantId", "name image address")
+        .populate("restaurantId", "name image address location deliveryTime")
         .populate("deliveryPartnerId", "name phone");
 
     if (!order) return res.status(404).json(new ApiResponse(404, null, "Order not found"));

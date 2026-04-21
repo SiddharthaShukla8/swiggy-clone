@@ -5,7 +5,7 @@ import { Bell, CheckCircle, Package, Clock, Utensils, Plus, Edit, Trash2, X, Upl
 import api from "../services/api";
 import Navbar from "../components/Navbar";
 import FoodItemForm from "../components/FoodItemForm";
-import { fetchOwnerOrders, updateOrderStatus } from "../redux/slices/orderSlice";
+import { acceptOrder, fetchOwnerOrders, updateOrderStatus } from "../redux/slices/orderSlice";
 import toast from "react-hot-toast";
 import restaurantFallbackImg from "../assets/images/restaurant_fallback.png";
 import foodHeroImg from "../assets/images/food_hero.png";

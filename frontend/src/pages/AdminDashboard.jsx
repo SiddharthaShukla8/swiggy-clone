@@ -18,6 +18,7 @@ import {
     ChevronRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import restaurantFallbackImg from "../assets/images/restaurant_fallback.png";
 
 const AdminDashboard = () => {
     const [activeTab, setActiveTab] = useState('analytics');
@@ -311,7 +312,7 @@ const AdminDashboard = () => {
                                             >
                                                 <div className="flex gap-4 mb-6">
                                                     <div className="relative">
-                                                        <img src={record.image || 'https://via.placeholder.com/150'} className="w-20 h-20 rounded-2xl object-cover shadow-sm" />
+                                                        <img src={record.image || restaurantFallbackImg} className="w-20 h-20 rounded-2xl object-cover shadow-sm" />
                                                         <div className="absolute -top-2 -right-2 bg-primary text-white p-1 rounded-lg">
                                                             <Store size={14} />
                                                         </div>

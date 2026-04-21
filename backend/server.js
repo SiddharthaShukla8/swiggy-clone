@@ -122,6 +122,7 @@ const adminRoutes = require("./routes/admin.routes.js");
 const foodRoutes = require("./routes/foodItem.routes.js");
 const notificationRoutes = require("./routes/notification.routes.js");
 const reviewRoutes = require("./routes/review.routes.js");
+const contentRoutes = require("./routes/content.routes.js");
 
 // Routes Declaration
 app.use("/auth", authRoutes); // Added root-level auth for Google Callback compatibility
@@ -137,6 +138,7 @@ app.use("/api/v1/food", foodRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/reviews", require("./routes/review.routes"));
 app.use("/api/v1/coupons", require("./routes/coupon.routes"));
+app.use("/api/v1/content", contentRoutes);
 
 // API Health Check
 app.get("/api/v1", (req, res) => {

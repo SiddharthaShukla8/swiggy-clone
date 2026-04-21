@@ -1,21 +1,55 @@
-import React, { useState } from "react";
-import { X, Upload, Check, AlertCircle } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { X, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getSiteContent } from "../services/siteContent";
 
 const FoodItemForm = ({ isOpen, onClose, onSubmit, initialData = null }) => {
-    const [formData, setFormData] = useState(initialData || {
+    const createDefaultFormData = () => ({
         name: "",
         description: "",
         price: "",
-        category: "Biryani",
+        category: "",
         isVeg: true,
         image: "",
         isAvailable: true
     });
+    const [formData, setFormData] = useState(initialData || createDefaultFormData());
     const [imageFile, setImageFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(initialData?.image || "");
+    const [categories, setCategories] = useState([]);
 
-    const categories = ["Biryani", "North Indian", "Pizza", "South Indian", "Chinese", "Burger", "Rolls", "Desserts"];
+    useEffect(() => {
+        if (initialData) {
+            setFormData(initialData);
+            setPreviewUrl(initialData.image || "");
+        } else {
+            setFormData(createDefaultFormData());
+            setPreviewUrl("");
+        }
+        setImageFile(null);
+    }, [initialData]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+
+        getSiteContent({ force: true })
+            .then((content) => {
+                const nextCategories = content?.forms?.menuCategories || [];
+                setCategories(nextCategories);
+
+                if (!initialData && nextCategories.length > 0) {
+                    setFormData((current) => ({
+                        ...current,
+                        category: current.category || nextCategories[0],
+                    }));
+                }
+            })
+            .catch((error) => {
+                console.error("Failed to load menu categories", error);
+            });
+    }, [isOpen, initialData]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -100,6 +134,7 @@ const FoodItemForm = ({ isOpen, onClose, onSubmit, initialData = null }) => {
                                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                     className="w-full bg-gray-50 border-none rounded-2xl px-5 py-3.5 font-bold text-secondary focus:ring-2 focus:ring-swiggy-orange outline-none transition-all appearance-none"
                                 >
+                                    {!formData.category && <option value="">Select category</option>}
                                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
@@ -180,6 +215,7 @@ const FoodItemForm = ({ isOpen, onClose, onSubmit, initialData = null }) => {
 
                         <button
                             type="submit"
+                            disabled={!formData.category}
                             className="w-full bg-swiggy-orange text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-orange-100 hover:bg-orange-600 transition-all uppercase tracking-widest mt-4"
                         >
                             {initialData ? "Update Item" : "Create Food Item"}
