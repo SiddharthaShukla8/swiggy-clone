@@ -1,0 +1,172 @@
+const mongoose = require("mongoose");
+const dotenv = require("dotenv");
+const Restaurant = require("./models/restaurant.model");
+const FoodItem = require("./models/foodItem.model");
+const Coupon = require("./models/coupon.model");
+
+const User = require("./models/user.model");
+
+dotenv.config();
+
+const MONGO_URI = process.env.MONGODB_URI;
+
+const restaurants = [
+    {
+        name: "The Gourmet Hub",
+        image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=60",
+        cuisines: ["North Indian", "Continental"],
+        averageRating: 4.5,
+        deliveryTime: 25,
+        address: "Indiranagar, Bangalore",
+        location: {
+            type: "Point",
+            coordinates: [77.5946, 12.9716] // Longitude first
+        },
+        isApproved: true
+    },
+    {
+        name: "Burger Castle",
+        image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=800&auto=format&fit=crop&q=60",
+        cuisines: ["American", "Fast Food"],
+        averageRating: 4.2,
+        deliveryTime: 20,
+        address: "Koramangala, Bangalore",
+        location: {
+            type: "Point",
+            coordinates: [77.6245, 12.9352]
+        },
+        isApproved: true
+    },
+    {
+        name: "Pizza Paradise",
+        image: "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&auto=format&fit=crop&q=60",
+        cuisines: ["Italian", "Pizzas"],
+        averageRating: 4.8,
+        deliveryTime: 30,
+        address: "MG Road, Bangalore",
+        location: {
+            type: "Point",
+            coordinates: [77.5993, 12.9767]
+        },
+        isApproved: true
+    },
+    {
+        name: "Biryani Blues",
+        image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=800&auto=format&fit=crop&q=60",
+        cuisines: ["Hyderabadi", "Biryani"],
+        averageRating: 4.6,
+        deliveryTime: 35,
+        address: "HSR Layout, Bangalore",
+        location: {
+            type: "Point",
+            coordinates: [77.6411, 12.9141]
+        },
+        isApproved: true
+    },
+    {
+        name: "Royal Chinese",
+        image: "https://images.unsplash.com/photo-1512058560366-cd2427ffaa96?w=800&auto=format&fit=crop&q=60",
+        cuisines: ["Chinese", "Asian"],
+        averageRating: 4.3,
+        deliveryTime: 25,
+        address: "BTM Layout, Bangalore",
+        location: {
+            type: "Point",
+            coordinates: [77.6101, 12.9166]
+        },
+        isApproved: true
+    }
+];
+
+const foodItems = [
+    {
+        name: "Premium Veg Platter",
+        description: "Assorted vegetables grilled to perfection with signature spices.",
+        price: 499,
+        image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=60",
+        category: "Main Course",
+        isVegetarian: true
+    },
+    {
+        name: "Classic Cheese Burger",
+        description: "Juicy patty with melted cheddar and fresh lettuce.",
+        price: 299,
+        image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&auto=format&fit=crop&q=60",
+        category: "Fast Food",
+        isVegetarian: false
+    },
+    {
+        name: "Pepperoni Pizza",
+        description: "Classic pizza with spicy pepperoni and double cheese.",
+        price: 599,
+        image: "https://images.unsplash.com/photo-1628840042765-356cda07504e?w=400&auto=format&fit=crop&q=60",
+        category: "Pizzas",
+        isVegetarian: false
+    },
+    {
+        name: "Hydrabadi Chicken Biryani",
+        description: "Authentic slow-cooked biryani with tender chicken pieces.",
+        price: 450,
+        image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400&auto=format&fit=crop&q=60",
+        category: "Biryani",
+        isVegetarian: false
+    }
+];
+
+const seedDB = async () => {
+    try {
+        console.log("Connecting to MongoDB for seeding...");
+        await mongoose.connect(MONGO_URI);
+        console.log("Connected Successfully!");
+
+        // Find a user to act as owner
+        const seedOwner = await User.findOne();
+        if (!seedOwner) {
+            console.error("❌ No users found in database. Please create a user/login first.");
+            process.exit(1);
+        }
+
+        // Clear existing data
+        console.log("Clearing existing data...");
+        await Restaurant.deleteMany({});
+        await FoodItem.deleteMany({});
+        await Coupon.deleteMany({});
+
+        // Insert Restaurants
+        console.log("Inserting Restaurants...");
+        const restaurantsWithOwner = restaurants.map(r => ({ ...r, ownerId: seedOwner._id }));
+        const createdRestaurants = await Restaurant.insertMany(restaurantsWithOwner);
+
+        // Insert Food Items for each restaurant
+        console.log("Inserting Food Items...");
+        for (const restaurant of createdRestaurants) {
+            const itemsWithRef = foodItems.map(item => ({
+                ...item,
+                restaurantId: restaurant._id
+            }));
+            await FoodItem.insertMany(itemsWithRef);
+        }
+
+        // Insert a sample Coupon
+        console.log("Inserting Coupons...");
+        await Coupon.create({
+            code: "WELCOME50",
+            discountType: "PERCENTAGE",
+            discountValue: 50,
+            minOrderAmount: 200,
+            maxDiscount: 100,
+            expiryDate: new Date("2030-01-01"),
+            usageLimit: 1000,
+            isActive: true,
+            usedCount: 0
+        });
+
+        console.log("✅ Seeding completed successfully!");
+        process.exit(0);
+    } catch (error) {
+        console.error("❌ Seeding failed:", error);
+        process.exit(1);
+    }
+};
+
+seedDB();
