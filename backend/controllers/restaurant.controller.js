@@ -10,25 +10,47 @@ const addRestaurant = asyncHandler(async (req, res) => {
     const { name, description, address, location, cuisines, deliveryTime, isPureVeg } = req.body;
     const imageUrl = req.file ? req.file.path : undefined;
 
-    if (!name || !address || !location) {
-        return res.status(400).json(new ApiResponse(400, null, "Name, address and location are required"));
+    if (!name || !address) {
+        return res.status(400).json(new ApiResponse(400, null, "Name and address are required"));
     }
 
-    const restaurant = await Restaurant.create({
-        name,
-        description,
-        address,
-        location,
-        cuisines,
-        deliveryTime,
-        isPureVeg,
-        image: imageUrl,
-        ownerId: req.user._id,
-    });
+    let parsedLocation = { type: "Point", coordinates: [77.1025, 28.7041] };
+    
+    if (location) {
+        if (typeof location === "string") {
+            try {
+                const parsed = JSON.parse(location);
+                if (parsed.type && parsed.coordinates) {
+                    parsedLocation = parsed;
+                }
+            } catch (error) {
+                // Ignore and use default
+            }
+        } else if (typeof location === "object" && location.type && location.coordinates) {
+            parsedLocation = location;
+        }
+    }
 
-    return res
-        .status(201)
-        .json(new ApiResponse(201, restaurant, "Restaurant added successfully"));
+    try {
+        const restaurant = await Restaurant.create({
+            name,
+            description,
+            address,
+            location: parsedLocation,
+            cuisines,
+            deliveryTime,
+            isPureVeg,
+            image: imageUrl,
+            ownerId: req.user._id,
+        });
+
+        return res
+            .status(201)
+            .json(new ApiResponse(201, restaurant, "Restaurant added successfully"));
+    } catch (error) {
+        console.error("ADD RESTAURANT ERROR:", error);
+        throw error;
+    }
 });
 
 // @desc    Get restaurants near a specific location with filters/sort/pagination

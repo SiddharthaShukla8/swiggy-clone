@@ -18,7 +18,9 @@ const MyOrders = () => {
     const fetchOrders = async () => {
         try {
             const res = await api.get("/orders/my-orders");
-            setOrders(res.data.data?.orders || []);
+            // Backend returns data as a plain array
+            const data = res.data.data;
+            setOrders(Array.isArray(data) ? data : (data?.orders || []));
             setLoading(false);
         } catch (err) {
             toast.error("Failed to load orders");

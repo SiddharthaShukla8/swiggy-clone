@@ -201,6 +201,34 @@ const getMe = asyncHandler(async (req, res) => {
     );
 });
 
+const updateProfile = asyncHandler(async (req, res) => {
+    const { name, phone, location } = req.body;
+
+    const updates = {};
+    if (name) updates.name = name.trim();
+    if (phone) updates.phone = phone.trim();
+    if (location?.address) {
+        updates.location = {
+            type: "Point",
+            address: location.address,
+            coordinates: [
+                parseFloat(location.lng || 0),
+                parseFloat(location.lat || 0)
+            ]
+        };
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+        req.user._id,
+        { $set: updates },
+        { new: true, runValidators: true }
+    ).select("-password -refreshToken");
+
+    return res.status(200).json(
+        new ApiResponse(200, updatedUser, "Profile updated successfully")
+    );
+});
+
 module.exports = {
     signup,
     login,
@@ -208,4 +236,5 @@ module.exports = {
     refreshAccessToken,
     generateAccessAndRefereshTokens,
     getMe,
+    updateProfile,
 };

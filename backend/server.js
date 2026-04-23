@@ -82,8 +82,8 @@ app.use(sanitizeRequest);
 
 // Rate Limiting
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 100 
+    windowMs: 15 * 60 * 1000,
+    max: 100
 });
 app.use("/api", limiter);
 
@@ -160,6 +160,9 @@ app.use((req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
+    const fs = require('fs');
+    try { fs.appendFileSync('error.log', err.stack + '\n'); } catch (e) { }
+
     const statusCode = err.statusCode || 500;
     res.status(statusCode).json({
         success: false,

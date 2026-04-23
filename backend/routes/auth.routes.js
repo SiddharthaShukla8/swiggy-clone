@@ -4,7 +4,8 @@ const {
     login, 
     logout, 
     refreshAccessToken,
-    getMe
+    getMe,
+    updateProfile
 } = require("../controllers/auth.controller");
 const { verifyJWT } = require("../middlewares/auth.middleware");
 
@@ -59,5 +60,6 @@ router.post("/login", login);
 router.post("/logout", verifyJWT, logout);
 router.post("/refresh-token", refreshAccessToken);
 router.get("/me", verifyJWT, getMe);
+router.patch("/profile", verifyJWT, updateProfile);
 
 module.exports = router;

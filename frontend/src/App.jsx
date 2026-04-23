@@ -30,6 +30,7 @@ const SearchPage = lazy(() => import('./pages/SearchPage'));
 const MyOrders = lazy(() => import('./pages/MyOrders'));
 const RestaurantDetail = lazy(() => import('./pages/RestaurantDetail'));
 const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -110,6 +111,11 @@ function App() {
               } />
               <Route path="/order-success" element={<OrderSuccess />} />
               <Route path="/order/tracking/:orderId" element={<OrderTracking />} />
+              <Route path="/profile" element={
+                <ProtectedRoute allowedRoles={["CUSTOMER", "RESTAURANT_OWNER", "DELIVERY_PARTNER", "ADMIN"]}>
+                  <ProfilePage />
+                </ProtectedRoute>
+              } />
               
               {/* Owner Routes */}
               <Route path="/owner-dashboard" element={

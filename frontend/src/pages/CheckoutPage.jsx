@@ -57,7 +57,7 @@ const CheckoutPage = () => {
             const checkoutRes = await api.post("/orders/checkout", {
                 couponCode: appliedCoupon?.code
             });
-            const { razorpayOrderId, amount, currency } = checkoutRes.data.data;
+            const { orderId, razorpayOrderId, amount, currency } = checkoutRes.data.data;
 
             const options = {
                 key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_Sb2qWVxlircSdx",
@@ -70,13 +70,13 @@ const CheckoutPage = () => {
                 handler: async (response) => {
                     try {
                         const verifyRes = await api.post("/orders/verify", {
-                            razorpayOrderId: response.razorpay_order_id,
+                            orderId,                                    // MongoDB Order _id ✓
                             razorpayPaymentId: response.razorpay_payment_id,
                             razorpaySignature: response.razorpay_signature,
                             deliveryAddress: {
                                 address: user?.location?.address || "Default Address",
-                                lat: user?.location?.coordinates[1] || 0,
-                                lng: user?.location?.coordinates[0] || 0,
+                                lat: user?.location?.coordinates?.[1] || 0,
+                                lng: user?.location?.coordinates?.[0] || 0,
                             },
                         });
 
@@ -89,6 +89,7 @@ const CheckoutPage = () => {
                         setLoading(false);
                     }
                 },
+
                 modal: {
                     ondismiss: () => {
                         setLoading(false);

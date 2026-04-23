@@ -5,6 +5,7 @@ import { Bell, CheckCircle, Package, Clock, Utensils, Plus, Edit, Trash2, X, Upl
 import api from "../services/api";
 import Navbar from "../components/Navbar";
 import FoodItemForm from "../components/FoodItemForm";
+import RestaurantSetup from "../components/RestaurantSetup";
 import { acceptOrder, fetchOwnerOrders, updateOrderStatus } from "../redux/slices/orderSlice";
 import toast from "react-hot-toast";
 import restaurantFallbackImg from "../assets/images/restaurant_fallback.png";
@@ -18,9 +19,11 @@ const OwnerDashboard = () => {
     const [menuItems, setMenuItems] = useState([]);
     const [editingItem, setEditingItem] = useState(null);
     const [restaurant, setRestaurant] = useState(null);
+    const [isRestaurantLoading, setIsRestaurantLoading] = useState(true);
     const [showMenuManager, setShowMenuManager] = useState(false);
 
     const fetchMyRestaurant = async () => {
+        setIsRestaurantLoading(true);
         try {
             const res = await api.get("/restaurants/my");
             setRestaurant(res.data.data);
@@ -30,6 +33,8 @@ const OwnerDashboard = () => {
             }
         } catch (err) {
             console.error("Failed to fetch restaurant data");
+        } finally {
+            setIsRestaurantLoading(false);
         }
     };
 
@@ -115,8 +120,16 @@ const OwnerDashboard = () => {
         <div className="min-h-screen bg-gray-50 pt-24 pb-20">
             <Navbar />
             <div className="max-w-6xl mx-auto px-4">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                    <h1 className="text-3xl font-bold text-secondary font-heading">Restaurant Dashboard</h1>
+                {isRestaurantLoading ? (
+                    <div className="text-center py-20 text-accent font-bold animate-pulse">Loading dashboard...</div>
+                ) : !restaurant ? (
+                    <RestaurantSetup onComplete={(newRestaurant) => {
+                        setRestaurant(newRestaurant);
+                    }} />
+                ) : (
+                    <>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                            <h1 className="text-3xl font-bold text-secondary font-heading">Restaurant Dashboard</h1>
                     <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100 overflow-x-auto no-scrollbar">
                         {tabs.map((tab) => (
                             <button
@@ -329,6 +342,8 @@ const OwnerDashboard = () => {
                             )}
                         </AnimatePresence>
                     </div>
+                )}
+                    </>
                 )}
             </div>
         </div>

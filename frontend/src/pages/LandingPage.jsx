@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 import { fetchNearbyRestaurants } from "../redux/slices/restaurantSlice";
 import { motion, AnimatePresence } from "framer-motion";
 import "react-loading-skeleton/dist/skeleton.css";
-import { Search, MapPin, ArrowRight, ChevronLeft, ChevronRight, SlidersHorizontal, Star, Clock, Leaf, ChevronDown, X } from "lucide-react";
+import { Search, MapPin, ArrowRight, ChevronLeft, ChevronRight, Star, Clock, Leaf, ChevronDown, X, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import { setLocation } from "../redux/slices/locationSlice";
 import useDebounce from "../hooks/useDebounce";
@@ -14,7 +14,7 @@ import { Helmet } from "react-helmet-async";
 import { CategorySkeleton, RestaurantSkeleton } from "../components/skeletons/AppSkeletons";
 import { getRestaurantImage } from "../utils/restaurantImages";
 import { detectCurrentLocation } from "../services/locationService";
-import { getSiteContent } from "../services/siteContent";
+import { getSiteContent, invalidateSiteContent } from "../services/siteContent";
 import { getRestaurantBadge } from "../utils/restaurantPresentation";
 import api from "../services/api";
 
@@ -26,6 +26,7 @@ const LandingPage = () => {
     const [isDetecting, setIsDetecting] = useState(false);
     const [siteContent, setSiteContent] = useState(null);
     const [contentLoading, setContentLoading] = useState(true);
+    const [contentError, setContentError] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [suggestions, setSuggestions] = useState([]);
@@ -51,19 +52,25 @@ const LandingPage = () => {
     const curatedCollectionsSection = siteContent?.landing?.curatedCollectionsSection;
     const spotlightSection = siteContent?.landing?.spotlightSection;
 
-    useEffect(() => {
-        getSiteContent()
+    const loadContent = useCallback(({ force = false } = {}) => {
+        setContentLoading(true);
+        setContentError(false);
+        getSiteContent({ force })
             .then((content) => {
                 setSiteContent(content);
             })
             .catch((error) => {
                 console.error("Failed to load site content", error);
-                toast.error("We could not load the latest homepage content.");
+                setContentError(true);
             })
             .finally(() => {
                 setContentLoading(false);
             });
     }, []);
+
+    useEffect(() => {
+        loadContent();
+    }, [loadContent]);
 
     useEffect(() => {
         const fetchSuggestions = async () => {
@@ -76,8 +83,11 @@ const LandingPage = () => {
             setShowSuggestions(true);
             try {
                 const locParams = (lat && lng) ? `&lat=${lat}&lng=${lng}` : "";
-                const res = await api.get(`/restaurants/search?q=${debouncedQuery}${locParams}`);
-                setSuggestions(res.data.data.slice(0, 8));
+                const res = await api.get(`/restaurants/search?q=${debouncedQuery}${locParams}&limit=8`);
+                // Handle both old (array) and new ({restaurants,total}) shapes
+                const data = res.data.data;
+                const list = Array.isArray(data) ? data : (data?.restaurants || []);
+                setSuggestions(list.slice(0, 8));
             } catch (err) {
                 console.error("Suggestions failed", err);
             } finally {
@@ -238,7 +248,17 @@ const LandingPage = () => {
                     </div>
                 </div>
                 
-                {contentLoading ? (
+                {contentError ? (
+                    <div className="flex flex-col items-center justify-center py-12 gap-4">
+                        <p className="text-accent font-bold">Could not load categories — backend may be starting up.</p>
+                        <button
+                            onClick={() => { invalidateSiteContent(); loadContent({ force: true }); }}
+                            className="flex items-center gap-2 bg-swiggy-orange text-white px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-orange-600 transition-colors"
+                        >
+                            <RefreshCw size={16} /> Retry
+                        </button>
+                    </div>
+                ) : contentLoading ? (
                     <CategorySkeleton />
                 ) : (
                     <div ref={featuredCategoriesRef} className="flex overflow-x-auto gap-12 no-scrollbar pb-8 px-2">
@@ -252,7 +272,10 @@ const LandingPage = () => {
                                 <div className="w-32 h-32 md:w-36 md:h-36 rounded-full overflow-hidden mb-4 shadow-sm group-hover:shadow-xl transition-all border-4 border-transparent group-hover:border-swiggy-orange">
                                     <img src={opt.imageUrl} alt={opt.name} className="w-full h-full object-cover grayscale-[0.1] group-hover:grayscale-0" />
                                 </div>
-                                <span className="font-bold text-accent group-hover:text-secondary transition-colors">{opt.name}</span>
+                                <span className="font-bold text-secondary group-hover:text-swiggy-orange transition-colors block">{opt.name}</span>
+                                {opt.count > 0 && (
+                                    <span className="text-[10px] text-accent font-bold">{opt.count} restaurants</span>
+                                )}
                             </motion.div>
                         ))}
                     </div>

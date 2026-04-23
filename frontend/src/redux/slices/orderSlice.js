@@ -30,7 +30,7 @@ export const acceptOrder = createAsyncThunk(
     "orders/accept",
     async (orderId, { rejectWithValue }) => {
         try {
-            const response = await api.post(`/orders/${orderId}/accept`);
+            const response = await api.patch(`/owner/orders/${orderId}/status`, { status: "CONFIRMED" });
             return response.data.data;
         } catch (error) {
             return rejectWithValue(error.response?.data?.message || "Failed to accept order");
@@ -42,7 +42,7 @@ export const updateOrderStatus = createAsyncThunk(
     "orders/updateStatus",
     async ({ orderId, status }, { rejectWithValue }) => {
         try {
-            const response = await api.patch(`/orders/${orderId}/status`, { status });
+            const response = await api.patch(`/owner/orders/${orderId}/status`, { status });
             return response.data.data;
         } catch (error) {
             return rejectWithValue(error.response?.data?.message || "Failed to update order status");
@@ -78,15 +78,29 @@ const orderSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
+            .addCase(fetchOwnerOrders.pending, (state) => {
+                state.loading = true;
+            })
             .addCase(fetchOwnerOrders.fulfilled, (state, action) => {
-                state.orders = action.payload;
+                state.orders = action.payload || [];
                 state.loading = false;
+            })
+            .addCase(fetchOwnerOrders.rejected, (state, action) => {
+                state.error = action.payload;
+                state.loading = false;
+                state.orders = []; // Fallback so .filter() never crashes
             })
             .addCase(fetchAvailableDeliveryOrders.fulfilled, (state, action) => {
                 state.availableOrders = action.payload;
                 state.loading = false;
             })
             .addCase(updateOrderStatus.fulfilled, (state, action) => {
+                const index = state.orders.findIndex(o => o._id === action.payload._id);
+                if (index !== -1) {
+                    state.orders[index] = action.payload;
+                }
+            })
+            .addCase(acceptOrder.fulfilled, (state, action) => {
                 const index = state.orders.findIndex(o => o._id === action.payload._id);
                 if (index !== -1) {
                     state.orders[index] = action.payload;

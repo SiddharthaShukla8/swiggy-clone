@@ -36,8 +36,8 @@ const initiateCheckout = asyncHandler(async (req, res) => {
     const { totalToPay, totalPaise } = totals;
     const restaurantId = cart.items[0].foodItemId.restaurantId;
 
-    // 4. Create Razorpay Order
-    const razorpayOrder = await createRazorpayOrder(totalToPay); // Service handles conversion to paise
+    // 4. Create Razorpay Order — MUST pass paise (integer), NOT rupees
+    const razorpayOrder = await createRazorpayOrder(totalPaise);
 
     // 5. Create Order in Pending State with ITEM SNAPSHOTS
     const order = await Order.create({
@@ -68,7 +68,7 @@ const initiateCheckout = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, {
         orderId: order._id,
         razorpayOrderId: razorpayOrder.id,
-        amount: totalToPay * 100, // For checkout script
+        amount: totalPaise,  // Already in paise — correct for Razorpay checkout
         currency: "INR"
     }, "Checkout initiated"));
 });
